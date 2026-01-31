@@ -41,7 +41,7 @@ jobs:
         if: steps.versions.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 25
 
       - name: Install dependencies
         if: steps.versions.outputs.exists == 'true'

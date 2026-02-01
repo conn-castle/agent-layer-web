@@ -5,7 +5,7 @@ import { themes as prismThemes } from "prism-react-renderer";
 const config = {
   title: "Agent Layer",
   tagline: "One repo-local source of truth for instructions, slash commands, and MCP servers across coding agents.",
-  favicon: "img/favicon.svg",
+  favicon: "img/favicon.ico",
 
   url: "https://agent-layer.dev",
   baseUrl: "/",

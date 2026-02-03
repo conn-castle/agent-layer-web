@@ -29,7 +29,7 @@ const config = {
         docs: {
           routeBasePath: "docs",
           sidebarPath: "./sidebars.js",
-          includeCurrentVersion: true, // temporarily enabled until successful first release
+          includeCurrentVersion: false,
         },
         blog: false,
         theme: {

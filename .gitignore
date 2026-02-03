@@ -18,3 +18,35 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# >>> agent-layer
+# Template hash: fc1b2872e3174f317c70c87c4d57ce7d1c4b0f7c17890ac8e7ade892bce4bba1
+# Managed by Agent Layer. To customize, edit .agent-layer/gitignore.block
+# and re-run `al init` to apply changes.
+#
+# Agent Layer config (always ignore .env)
+/.agent-layer/.env
+# Optional: keep uncommented to ignore .agent-layer/ config.
+/.agent-layer/
+# Optional: uncomment to ignore docs/agent-layer/ project memory.
+# Edit .agent-layer/gitignore.block (not .gitignore) to change this entry.
+# /docs/agent-layer/
+
+# Agent Layer-generated instruction shims
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+/.github/copilot-instructions.md
+
+# Agent Layer-generated client configs + artifacts
+/.agent/
+/.mcp.json
+/.codex/
+/.gemini/
+/.claude/
+/.vscode/mcp.json
+/.vscode/prompts/
+# Optional: keep uncommented to ignore VS Code settings.
+/.vscode/settings.json
+
+# <<< agent-layer

@@ -1,30 +1,769 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Agent Layer - Developer/Terminal inspired theme
+ * Blue color scheme (matching logo) with monospace accents
  */
 
-/* You can override the default Infima variables here. */
+/* Google Fonts - JetBrains Mono for code/headers */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ============================================
+   Color Palette - Blues (matching logo)
+   ============================================ */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  /* Primary colors - blue palette matching logo (#80c7dc, #629ad0) */
+  --ifm-color-primary: #629ad0;
+  --ifm-color-primary-dark: #4a85c0;
+  --ifm-color-primary-darker: #3d74ac;
+  --ifm-color-primary-darkest: #2d5a8a;
+  --ifm-color-primary-light: #80c7dc;
+  --ifm-color-primary-lighter: #a3d8e8;
+  --ifm-color-primary-lightest: #c5e9f3;
+
+  /* Typography */
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+  --ifm-heading-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-code-font-size: 0.9rem;
+
+  /* Backgrounds */
+  --ifm-background-color: #fafbfc;
+  --ifm-background-surface-color: #ffffff;
+
+  /* Code */
+  --docusaurus-highlighted-code-line-bg: rgba(98, 154, 208, 0.1);
+  --ifm-code-background: rgba(98, 154, 208, 0.08);
+
+  /* Custom vars */
+  --al-gradient-start: #80c7dc;
+  --al-gradient-end: #629ad0;
+  --al-card-bg: #ffffff;
+  --al-card-border: #e5e7eb;
+  --al-terminal-bg: #1a2332;
+  --al-terminal-header: #243447;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+/* Dark mode palette */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-color-primary: #80c7dc;
+  --ifm-color-primary-dark: #629ad0;
+  --ifm-color-primary-darker: #4a85c0;
+  --ifm-color-primary-darkest: #3d74ac;
+  --ifm-color-primary-light: #a3d8e8;
+  --ifm-color-primary-lighter: #c5e9f3;
+  --ifm-color-primary-lightest: #e0f4fa;
+
+  --ifm-background-color: #0d1117;
+  --ifm-background-surface-color: #161b22;
+
+  --docusaurus-highlighted-code-line-bg: rgba(128, 199, 220, 0.15);
+  --ifm-code-background: rgba(128, 199, 220, 0.1);
+
+  --al-gradient-start: #80c7dc;
+  --al-gradient-end: #629ad0;
+  --al-card-bg: #161b22;
+  --al-card-border: #30363d;
+  --al-terminal-bg: #0d1117;
+  --al-terminal-header: #161b22;
+}
+
+/* ============================================
+   Global Typography
+   ============================================ */
+html {
+  font-size: 16px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================
+   Navbar
+   ============================================ */
+.navbar {
+  background: var(--ifm-background-surface-color);
+  border-bottom: 1px solid var(--al-card-border);
+  box-shadow: none;
+}
+
+.navbar__logo {
+  height: 40px;
+  width: auto;
+}
+
+.navbar__logo img {
+  height: 40px;
+  width: auto;
+}
+
+/* Dark mode logo uses srcDark SVG with proper white text - no filter needed */
+
+.navbar__title {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.navbar__link {
+  font-weight: 500;
+}
+
+.navbar__link:hover {
+  color: var(--ifm-color-primary);
+}
+
+/* ============================================
+   Hero Section
+   ============================================ */
+.hero-container {
+  padding: 4rem 2rem;
+  text-align: center;
+  background: linear-gradient(135deg,
+    rgba(98, 154, 208, 0.05) 0%,
+    rgba(98, 154, 208, 0.05) 100%);
+}
+
+[data-theme='dark'] .hero-container {
+  background: linear-gradient(135deg,
+    rgba(98, 154, 208, 0.1) 0%,
+    rgba(98, 154, 208, 0.08) 100%);
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--al-gradient-start), var(--al-gradient-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-logo {
+  height: 72px;
+  width: auto;
+  margin-bottom: 1rem;
+}
+
+/* Light mode: show light logo, hide dark logo */
+.hero-logo--light {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero-logo--dark {
+  display: none;
+}
+
+/* Dark mode: show dark logo, hide light logo */
+[data-theme='dark'] .hero-logo--light {
+  display: none;
+}
+[data-theme='dark'] .hero-logo--dark {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-logo {
+    height: 52px;
+  }
+}
+
+.hero-tagline {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1.25rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 2rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+[data-theme='dark'] .hero-tagline {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+}
+
+.hero-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  line-height: 1.2;
+}
+
+/* Fix MDX wrapping text in <p> tags */
+.hero-button p {
+  margin: 0;
+  padding: 0;
+}
+
+.hero-button--primary {
+  background: linear-gradient(135deg, var(--al-gradient-start), var(--al-gradient-end));
+  color: white;
+  border: none;
+}
+
+.hero-button--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(98, 154, 208, 0.3);
+  color: white;
+  text-decoration: none;
+}
+
+.hero-button--secondary {
+  background: transparent;
+  color: var(--ifm-color-primary);
+  border: 2px solid var(--ifm-color-primary);
+}
+
+.hero-button--secondary:hover {
+  background: var(--ifm-color-primary);
+  color: white;
+  text-decoration: none;
+}
+
+/* ============================================
+   Terminal Code Block
+   ============================================ */
+.terminal-window {
+  max-width: 600px;
+  margin: 0 auto 3rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  text-align: left;
+}
+
+[data-theme='dark'] .terminal-window {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+.terminal-header {
+  background: var(--al-terminal-header);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.terminal-dot--red { background: #ff5f56; }
+.terminal-dot--yellow { background: #ffbd2e; }
+.terminal-dot--green { background: #27c93f; }
+
+.terminal-title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  color: #6c7086;
+  margin-right: 52px; /* offset the dots for centering */
+}
+
+.terminal-body {
+  background: var(--al-terminal-bg);
+  padding: 1.25rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.terminal-line {
+  margin: 0;
+  padding: 0;
+}
+
+.terminal-prompt {
+  color: #a6e3a1;
+}
+
+.terminal-command {
+  color: #cdd6f4;
+}
+
+.terminal-comment {
+  color: #6c7086;
+}
+
+/* ============================================
+   Features Section - Clean List Layout
+   ============================================ */
+.features-section {
+  padding: 4rem 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.features-title {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.features-subtitle {
+  text-align: center;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 3rem;
+}
+
+.features-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem 3rem;
+}
+
+@media (max-width: 640px) {
+  .features-list {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.feature-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-900);
+  margin: 0;
+}
+
+.feature-description {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-600);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.feature-description p {
+  margin: 0;
+}
+
+/* ============================================
+   Comparison Table
+   ============================================ */
+.comparison-section {
+  padding: 4rem 2rem;
+  background: var(--ifm-background-surface-color);
+}
+
+[data-theme='dark'] .comparison-section {
+  background: var(--al-card-bg);
+}
+
+.comparison-table {
+  max-width: 900px;
+  margin: 0 auto;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--al-card-border);
+}
+
+.comparison-table th {
+  background: var(--ifm-color-primary);
+  color: white;
+  font-weight: 600;
+}
+
+.comparison-table th:first-child {
+  border-radius: 8px 0 0 0;
+}
+
+.comparison-table th:last-child {
+  border-radius: 0 8px 0 0;
+}
+
+.comparison-table tr:last-child td:first-child {
+  border-radius: 0 0 0 8px;
+}
+
+.comparison-table tr:last-child td:last-child {
+  border-radius: 0 0 8px 0;
+}
+
+.comparison-table tbody tr:hover {
+  background: rgba(98, 154, 208, 0.05);
+}
+
+/* ============================================
+   Admonitions - Terminal Style
+   ============================================ */
+.alert {
+  border-radius: 8px;
+  border-left: 4px solid;
+  background: var(--al-card-bg);
+}
+
+.alert--info {
+  border-left-color: var(--ifm-color-primary);
+  background: rgba(98, 154, 208, 0.05);
+}
+
+[data-theme='dark'] .alert--info {
+  background: rgba(98, 154, 208, 0.1);
+}
+
+.alert--success {
+  border-left-color: #22c55e;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+[data-theme='dark'] .alert--success {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.alert--warning {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+[data-theme='dark'] .alert--warning {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* ============================================
+   Code Blocks
+   ============================================ */
+.prism-code {
+  font-family: var(--ifm-font-family-monospace);
+  border-radius: 8px;
+}
+
+pre {
+  border-radius: 8px;
+}
+
+code {
+  font-family: var(--ifm-font-family-monospace);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+.footer {
+  background: var(--al-terminal-bg);
+  border-top: 1px solid var(--al-card-border);
+}
+
+.footer--dark {
+  background: var(--al-terminal-bg);
+}
+
+.footer__title {
+  font-family: var(--ifm-font-family-monospace);
+}
+
+/* ============================================
+   Content Pages (Docs, etc)
+   ============================================ */
+article h1 {
+  font-size: 2.5rem;
+}
+
+article h2 {
+  font-size: 1.75rem;
+  margin-top: 2.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--al-card-border);
+}
+
+article h3 {
+  font-size: 1.35rem;
+  margin-top: 2rem;
+}
+
+/* ============================================
+   CTA Section
+   ============================================ */
+.cta-section {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg,
+    rgba(98, 154, 208, 0.08) 0%,
+    rgba(98, 154, 208, 0.08) 100%);
+  border-radius: 16px;
+  margin: 3rem auto;
+  max-width: 800px;
+}
+
+[data-theme='dark'] .cta-section {
+  background: linear-gradient(135deg,
+    rgba(98, 154, 208, 0.15) 0%,
+    rgba(98, 154, 208, 0.12) 100%);
+}
+
+.cta-title {
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+}
+
+.cta-description {
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 1.5rem;
+}
+
+/* ============================================
+   Clients Section
+   ============================================ */
+.clients-section {
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.clients-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 1.5rem;
+}
+
+[data-theme='dark'] .clients-title {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.clients-grid {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.client-logo-full {
+  height: 36px;
+  width: auto;
+  transition: all 0.2s ease;
+}
+
+.client-logo-full:hover {
+  transform: translateY(-2px);
+}
+
+/* Individual logo size adjustments for visual balance */
+.client-logo--claude { height: 32px; }
+.client-logo--gemini { height: 34px; transform: translateY(-5px); }
+.client-logo--gemini:hover { transform: translateY(-7px); }
+.client-logo--openai { height: 32px; }
+.client-logo--copilot { height: 32px; }
+.client-logo--antigravity { height: 36px; }
+
+/* Dark mode: add light background card behind all logos for visibility */
+[data-theme='dark'] .clients-grid {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+/* ============================================
+   Custom Footer - Conn Castle Style
+   ============================================ */
+.custom-footer {
+  background: var(--al-terminal-bg);
+  border-top: 1px solid var(--al-card-border);
+  padding: 4rem 0 0;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 3rem;
+  margin-bottom: 3rem;
+}
+
+@media (max-width: 768px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+/* Branding Section */
+.footer-branding {
+  max-width: 400px;
+}
+
+.footer-logo-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.footer-conn-castle-logo {
+  height: 80px;
+  width: auto;
+}
+
+.footer-description {
+  color: #9ca3af;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.footer-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footer-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.footer-contact-item svg {
+  flex-shrink: 0;
+}
+
+.footer-contact-item a {
+  color: #9ca3af;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-contact-item a:hover {
+  color: var(--ifm-color-primary-light);
+}
+
+/* Links Columns */
+.footer-links-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-column-title {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f9fafb;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--ifm-color-primary);
+  display: inline-block;
+}
+
+.footer-links-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footer-links-list li a {
+  color: #9ca3af;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.footer-links-list li a:hover {
+  color: var(--ifm-color-primary-light);
+}
+
+/* Bottom Bar */
+.footer-bottom {
+  border-top: 1px solid var(--al-card-border);
+  padding: 1.5rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+.footer-copyright {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.footer-al-logo {
+  height: 24px;
+  width: auto;
+  /* Brighten the logo for dark footer background */
+  filter: brightness(1.8);
+}
+
+.footer-legal {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footer-legal a {
+  color: #9ca3af;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s ease;
+}
+
+.footer-legal a:hover {
+  color: var(--ifm-color-primary-light);
+}
+
+/* Override Docusaurus default footer styles */
+.footer--dark {
+  --ifm-footer-background-color: var(--al-terminal-bg);
 }

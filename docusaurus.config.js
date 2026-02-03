@@ -29,7 +29,7 @@ const config = {
         docs: {
           routeBasePath: "docs",
           sidebarPath: "./sidebars.js",
-          includeCurrentVersion: false,
+          includeCurrentVersion: true, // temporarily enabled for local preview
         },
         blog: false,
         theme: {
@@ -48,7 +48,12 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: "Agent Layer",
+        title: "",
+        logo: {
+          alt: "Agent Layer",
+          src: "img/branding/header_wordmark.svg",
+          srcDark: "img/branding/header_wordmark_dark.svg",
+        },
         items: [
           { to: "/docs", label: "Docs", position: "left" },
           { to: "/install", label: "Install", position: "left" },

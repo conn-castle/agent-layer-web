@@ -85,7 +85,7 @@ const ga4HeadTags = isProd
         tagName: "script",
         attributes: {
           src: `https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`,
-          async: true,
+          async: "true",
         },
       },
     ]

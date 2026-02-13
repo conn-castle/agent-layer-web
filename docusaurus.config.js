@@ -46,51 +46,6 @@ const faviconHeadTags = [
   },
 ];
 
-/** @type {import("@docusaurus/types").HtmlTagObject[]} */
-const ga4HeadTags = isProd
-  ? [
-      // GA4 with consent-mode default denied to avoid cookies without a banner.
-      // Note: depending on visitor location and browser, this may result in limited
-      // (modeled) reporting. This is intentional to satisfy "no cookies" by default.
-      {
-        tagName: "link",
-        attributes: { rel: "preconnect", href: "https://www.google-analytics.com" },
-      },
-      {
-        tagName: "link",
-        attributes: { rel: "preconnect", href: "https://www.googletagmanager.com" },
-      },
-      {
-        tagName: "script",
-        attributes: {},
-        innerHTML: `
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          window.gtag = gtag;
-
-          // Default-deny consent so we don't write/read cookies without an explicit user action.
-          gtag('consent', 'default', {
-            ad_storage: 'denied',
-            analytics_storage: 'denied',
-            ad_user_data: 'denied',
-            ad_personalization: 'denied',
-          });
-          gtag('set', 'ads_data_redaction', true);
-
-          gtag('js', new Date());
-          gtag('config', '${GA4_MEASUREMENT_ID}');
-        `,
-      },
-      {
-        tagName: "script",
-        attributes: {
-          src: `https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`,
-          async: "true",
-        },
-      },
-    ]
-  : [];
-
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Agent Layer",
@@ -103,9 +58,7 @@ const config = {
   organizationName: "conn-castle",
   projectName: "agent-layer-web",
 
-  headTags: [...faviconHeadTags, ...ga4HeadTags],
-
-  clientModules: isProd ? ["./src/clientModules/ga4RouteTracking.js"] : [],
+  headTags: faviconHeadTags,
 
   onBrokenLinks: "throw",
   markdown: {
@@ -141,6 +94,40 @@ const config = {
       }),
     ],
   ],
+
+  plugins: isProd
+    ? [
+        // IMPORTANT: plugin order is intentional.
+        // consentDefaultsPlugin MUST run before plugin-google-gtag so consent
+        // defaults are queued before GA initializes.
+        // We use standalone plugin registration (instead of preset gtag option)
+        // to keep this order explicit and visible.
+        function consentDefaultsPlugin() {
+          return {
+            name: "consent-defaults-plugin",
+            injectHtmlTags() {
+              return {
+                headTags: [
+                  {
+                    tagName: "script",
+                    attributes: {
+                      src: `${BASE_URL}js/consent-defaults.js`,
+                    },
+                  },
+                ],
+              };
+            },
+          };
+        },
+        [
+          "@docusaurus/plugin-google-gtag",
+          {
+            trackingID: GA4_MEASUREMENT_ID,
+            anonymizeIP: true,
+          },
+        ],
+      ]
+    : [],
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */

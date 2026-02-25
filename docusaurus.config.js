@@ -60,6 +60,13 @@ const config = {
 
   headTags: faviconHeadTags,
 
+  scripts: [
+    {
+      src: `${BASE_URL}js/hide-copy-button-home.js`,
+      defer: true,
+    },
+  ],
+
   onBrokenLinks: "throw",
   markdown: {
     hooks: {
@@ -95,39 +102,60 @@ const config = {
     ],
   ],
 
-  plugins: isProd
-    ? [
-        // IMPORTANT: plugin order is intentional.
-        // consentDefaultsPlugin MUST run before plugin-google-gtag so consent
-        // defaults are queued before GA initializes.
-        // We use standalone plugin registration (instead of preset gtag option)
-        // to keep this order explicit and visible.
-        function consentDefaultsPlugin() {
-          return {
-            name: "consent-defaults-plugin",
-            injectHtmlTags() {
-              return {
-                headTags: [
-                  {
-                    tagName: "script",
-                    attributes: {
-                      src: `${BASE_URL}js/consent-defaults.js`,
+  themes: [
+    [
+      "@easyops-cn/docusaurus-search-local",
+      /** @type {import("@easyops-cn/docusaurus-search-local").PluginOptions} */
+      ({
+        hashed: true,
+        docsRouteBasePath: "/docs",
+        indexBlog: false,
+        indexPages: true,
+      }),
+    ],
+  ],
+
+  plugins: [
+    [
+      "docusaurus-plugin-copy-page-button",
+      {
+        enabledActions: ["copy", "view"],
+      },
+    ],
+    ...(isProd
+      ? [
+          // IMPORTANT: plugin order is intentional.
+          // consentDefaultsPlugin MUST run before plugin-google-gtag so consent
+          // defaults are queued before GA initializes.
+          // We use standalone plugin registration (instead of preset gtag option)
+          // to keep this order explicit and visible.
+          function consentDefaultsPlugin() {
+            return {
+              name: "consent-defaults-plugin",
+              injectHtmlTags() {
+                return {
+                  headTags: [
+                    {
+                      tagName: "script",
+                      attributes: {
+                        src: `${BASE_URL}js/consent-defaults.js`,
+                      },
                     },
-                  },
-                ],
-              };
-            },
-          };
-        },
-        [
-          "@docusaurus/plugin-google-gtag",
-          {
-            trackingID: GA4_MEASUREMENT_ID,
-            anonymizeIP: true,
+                  ],
+                };
+              },
+            };
           },
-        ],
-      ]
-    : [],
+          [
+            "@docusaurus/plugin-google-gtag",
+            {
+              trackingID: GA4_MEASUREMENT_ID,
+              anonymizeIP: true,
+            },
+          ],
+        ]
+      : []),
+  ],
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
@@ -156,6 +184,7 @@ const config = {
           { to: "/security", label: "Security", position: "left" },
           { to: "/faq", label: "FAQ", position: "left" },
           { to: "/changelog", label: "Changelog", position: "left" },
+          { type: "search", position: "right" },
           { type: "docsVersionDropdown", position: "right" },
           {
             href: "https://github.com/conn-castle/agent-layer",

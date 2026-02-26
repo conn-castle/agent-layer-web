@@ -33,24 +33,49 @@ Never put secrets in `config.toml`. Secrets belong in `.agent-layer/.env`.
 
 ```toml
 [approvals]
-# one of: "all", "mcp", "commands", "none"
+# one of: "all", "mcp", "commands", "none", "yolo"
 mode = "all"
 
 [agents.gemini]
 enabled = true
 # model is optional; when omitted, the client uses its default.
 # model = "..."
+# reasoning_effort is not currently supported for Gemini in Agent Layer.
 
 [agents.claude]
 enabled = true
 # model = "..."
+# reasoning_effort is optional for Opus models only.
+# reasoning_effort = "medium" # low | medium | high
+# local_config_dir isolates Claude Code settings and caches per repo.
+# When true, al claude sets CLAUDE_CONFIG_DIR=<repo>/.claude-config.
+# For al vscode, CLAUDE_CONFIG_DIR is set only when both local_config_dir
+# and agents.claude_vscode are enabled. Otherwise, al vscode clears only
+# stale repo-local values and preserves user-defined non-repo values.
+# Note: auth is stored globally by Claude Code in the OS credential store
+# (macOS Keychain service "Claude Code-credentials"; Linux libsecret/gnome-keyring)
+# regardless of this setting (upstream limitation).
+# local_config_dir = false
+# Optional agent-specific passthrough config for Claude (arbitrary JSON keys).
+# These are shallow-merged at the top level into .claude/settings.json.
+# Nested objects are replaced (not deep-merged).
+# [agents.claude.agent_specific]
+
+[agents.claude_vscode]
+enabled = true
 
 [agents.codex]
 enabled = true
 # model is optional; when omitted, Agent Layer does not pass a model setting and the client uses its default.
-# model = "gpt-5.2-codex"
+# model = "gpt-5.3-codex"
 # reasoning_effort is optional; when omitted, the client uses its default.
 # reasoning_effort = "xhigh" # codex only
+# Optional agent-specific passthrough config for Codex (arbitrary TOML tables/keys).
+# These are appended to .codex/config.toml and can override top-level managed keys.
+# [agents.codex.agent_specific]
+# [agents.codex.agent_specific.features]
+# multi_agent = true
+# prevent_idle_sleep = true
 
 [agents.vscode]
 enabled = true
@@ -82,6 +107,8 @@ mcp_schema_tokens_total_threshold = 30000
 mcp_schema_tokens_server_threshold = 20000
 ```
 
+Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.claude.agent_specific` override Agent Layer-managed keys when they collide. Agent Layer emits a warning on every sync if you override managed keys.
+
 ### Sections at a glance
 
 | Section | Purpose |
@@ -97,12 +124,13 @@ mcp_schema_tokens_server_threshold = 20000
 
 ### Agents
 
-Each agent has an `enabled` flag and optional `model` value. Codex also supports `reasoning_effort`, which is optional; omit it (and `model`) to use the client defaults.
+Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`) for Opus models; Codex supports `reasoning_effort` with its own set of options. Omit `reasoning_effort` (and `model`) to use the client defaults. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
 
 Supported agents:
 
 - `gemini`
 - `claude`
+- `claude_vscode`
 - `codex`
 - `vscode`
 - `antigravity`
@@ -117,7 +145,7 @@ Each `[[mcp.servers]]` entry must include:
 
 Optional fields:
 
-- `clients` to restrict which clients receive a server
+- `clients` to restrict which clients receive a server (valid values: `gemini`, `claude`, `vscode`, `codex`, `antigravity`; note that `claude_vscode` uses the `claude` client)
 - `http_transport` (`sse` or `streamable`) for HTTP servers
 - `headers` for HTTP auth and metadata
 - `command`, `args`, `env` for stdio servers
@@ -191,7 +219,7 @@ Set `noise_mode` to control warning verbosity:
 
 Agent Layer validates `config.toml` on every run. Common validation rules:
 
-- `approvals.mode` must be one of `all`, `mcp`, `commands`, `none`
+- `approvals.mode` must be one of `all`, `mcp`, `commands`, `none`, `yolo`
 - `enabled` flags must be set for all agents and MCP servers
 - MCP transport must be `http` or `stdio`
 - `http_transport` (when set) must be `sse` or `streamable`
@@ -242,8 +270,10 @@ Rules:
 Example:
 
 ```env
-AL_GITHUB_PERSONAL_ACCESS_TOKEN=your-token-here
 AL_CONTEXT7_API_KEY=your-key-here
+AL_TAVILY_API_KEY=your-key-here
+# Optional: only when using a GitHub MCP server
+AL_GITHUB_PERSONAL_ACCESS_TOKEN=your-token-here
 ```
 
 ### Built-in placeholder
@@ -275,6 +305,7 @@ The command surface is intentionally small. Most of the time you only need one r
 | `al upgrade` | Apply template-managed updates and update the repo pin (interactive by default; non-interactive requires `--yes` plus one or more apply flags; line-level diff previews shown by default, configurable with `--diff-lines`). |
 | `al upgrade plan` | Show a dry-run, plain-language categorized upgrade plan with line-level diff previews (configurable with `--diff-lines`). |
 | `al upgrade prefetch` | Download and cache a release binary ahead of time (use `--version X.Y.Z` explicitly on dev builds). |
+| `al upgrade rollback --list` | List available upgrade snapshot IDs and statuses before rollback. |
 | `al upgrade rollback <snapshot-id>` | Restore an applied upgrade snapshot by ID (snapshot IDs are JSON filename stems under `.agent-layer/state/upgrade-snapshots/`). |
 | `al upgrade repair-gitignore-block` | Restore `.agent-layer/gitignore.block` from templates and reapply the root `.gitignore` managed block. |
 | `al wizard` | Interactive configuration plus profile mode (`--profile`) and backup cleanup (`--cleanup-backups`). |
@@ -353,7 +384,7 @@ In non-interactive environments, the wizard is skipped.
 - Never overwrites `.agent-layer/config.toml` or `.agent-layer/.env`
 - Creates an automatic snapshot for managed upgrade targets and auto-rolls back if an upgrade step fails
 - Stores snapshots under `.agent-layer/state/upgrade-snapshots/`
-- Supports manual restore of applied snapshots via `al upgrade rollback <snapshot-id>`
+- Supports snapshot discovery and manual restore via `al upgrade rollback --list` and `al upgrade rollback <snapshot-id>`
 
 Use `--diff-lines N` to raise the per-file diff preview cap (default: 40 lines).
 For a concise team/CI runbook, see [Upgrade checklist](./upgrade-checklist).
@@ -362,6 +393,7 @@ For a concise team/CI runbook, see [Upgrade checklist](./upgrade-checklist).
 
 `al upgrade rollback <snapshot-id>` restores a previously applied managed-file snapshot.
 
+- `al upgrade rollback --list` shows available snapshot IDs and statuses
 - Snapshot IDs are the `.json` filename stems in `.agent-layer/state/upgrade-snapshots/`
 - Only snapshots in `applied` status are rollback-eligible
 - Rollback fails loudly when a snapshot is missing, malformed, or non-rollbackable
@@ -394,7 +426,7 @@ Use it before `al upgrade` to understand what would change:
 - Template removals/orphans
 - Config key migrations (when migration manifests are present)
 - Pin version change (`current -> target`)
-- Readiness checks (for example unresolved placeholders, process-env vs `.env` collisions, ignored empty `.env` assignments, path-expansion anomalies, stale VS Code `--no-sync` outputs, floating dependency specs, stale disabled-agent artifacts, and generated-secret risk warnings)
+- Readiness checks (for example unresolved placeholders, process-env vs `.env` collisions, ignored empty `.env` assignments, path-expansion anomalies, stale VS Code `--no-sync` outputs, floating dependency specs, and stale disabled-agent artifacts)
 
 `al upgrade plan` also includes line-level diff previews for changed files. Use `--diff-lines N` to raise the per-file diff preview cap (default: 40 lines).
 
@@ -413,13 +445,21 @@ Use it when you want to get to a safe, working configuration quickly, or when yo
 - `.agent-layer/config.toml`
 - `.agent-layer/.env`
 
-The wizard rewrites `config.toml` in the template-defined order and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files.
+The wizard rewrites `config.toml` in a deterministic preferred section order and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files.
 
 Additional modes:
 
 - `al wizard --profile /path/to/profile.toml`: preview-only profile rewrite diff
 - `al wizard --profile /path/to/profile.toml --yes`: apply profile and run sync
 - `al wizard --cleanup-backups`: delete `.agent-layer/config.toml.bak` and `.agent-layer/.env.bak`
+
+**Navigation**
+
+- **Arrow keys**: Navigate options
+- **Space / x**: Toggle selection (multi-select steps)
+- **Enter**: Confirm and continue
+- **Esc**: Go back to the previous step (on the first step, prompts to exit)
+- **Ctrl+C**: Exit immediately without saving changes
 
 Secret prompt controls:
 
@@ -446,6 +486,21 @@ Think of sync as a build step. You can run it any time you want to refresh gener
 2. Parse instructions and slash commands to build client-specific outputs.
 3. Write generated configs and launchers for enabled clients.
 4. Emit warnings if any thresholds in `[warnings]` are exceeded.
+
+**Slash command format**
+
+Each file in `.agent-layer/slash-commands/` must be a Markdown file with YAML frontmatter:
+
+- `description` (required): short description of the command
+
+Example:
+
+```md
+---
+description: Run a code quality audit.
+---
+# Your command body here
+```
 
 **Generated outputs**
 
@@ -479,7 +534,7 @@ These commands read `.agent-layer/`, regenerate client outputs, and then launch 
 
 This is the default workflow for day-to-day use: you get a clean regenerate and a launch in one command, which keeps behavior consistent even when you switch tools.
 
-`al <client>` forwards any extra arguments to the underlying client. If you need to use Agent Layer flags as well, place `--` before the client arguments. `--no-sync` is supported only by `al vscode` and must appear before `--`. For an explicit false value, use `--no-sync=false` (space-separated values like `--no-sync false` are not supported and will be passed through).
+`al <client>` forwards any extra arguments to the underlying client. If you need to use Agent Layer flags as well, place `--` before the client arguments. `--no-sync` is supported by `al vscode` and must appear before `--`. For an explicit false value, use `--no-sync=false` (space-separated values like `--no-sync false` are not supported and will be passed through).
 
 `al vscode` preflight now fails fast with clear guidance when:
 

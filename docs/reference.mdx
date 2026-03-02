@@ -97,7 +97,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem@2026.1.14", "${AL_REPO_RO
 # Optional thresholds for warning checks. Omit or comment out to disable.
 # Warn when a newer Agent Layer version is available during sync runs.
 version_update_on_sync = true
-# Warning output noise control: "default" keeps all warnings, "reduce" hides suppressible non-critical warnings.
+# Warning output noise control: "default" keeps all warnings, "reduce" hides suppressible non-critical warnings,
+# and "quiet" suppresses agent-layer informational output (warnings still print in `al doctor`).
 noise_mode = "default"
 instruction_token_threshold = 10000
 mcp_server_threshold = 15
@@ -214,6 +215,7 @@ Set `noise_mode` to control warning verbosity:
 
 - `default`: keep all warnings (recommended)
 - `reduce`: hide only suppressible non-critical warnings
+- `quiet`: suppress agent-layer informational output (warnings still print in `al doctor`)
 
 ### Validation rules
 
@@ -341,7 +343,7 @@ It is scaffolding: it creates the files that make behavior explicit and repeatab
 
 Typical `.agent-layer/` files include:
 
-- `config.toml` (seeded if missing; user-owned), `commands.allow`, `instructions/`, `slash-commands/`
+- `config.toml` (seeded if missing; user-owned), `commands.allow`, `instructions/`, `skills/`
 - `al.version` (repo pin; required)
 - `.env` (seeded if missing; user-owned secrets, always gitignored)
 - `.gitignore` (internal ignores) and `gitignore.block` (root `.gitignore` template)
@@ -353,7 +355,7 @@ Typical `.agent-layer/` files include:
 
 Typical project memory files under `docs/agent-layer/`:
 
-- `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`
+- `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`
 
 **Wizard prompt**
 
@@ -379,7 +381,7 @@ In non-interactive environments, the wizard is skipped.
 - Updates `.agent-layer/al.version` to match the currently running `al` binary
 - Prompts before overwriting managed template files unless apply flags are explicitly selected
 - Shows line-level diff previews before overwrite decisions by default
-- In the default interactive flow, prompts about unknown files under `.agent-layer` and only deletes them if you explicitly approve
+- In the default interactive flow, prompts about unknown files under `.agent-layer/` and `docs/agent-layer/` and only deletes them if you explicitly approve
 - In non-interactive or explicit-category apply (e.g., `--yes --apply-managed-updates`), requires the separate `--apply-deletions` flag before unknown files are eligible for deletion
 - Never overwrites `.agent-layer/config.toml` or `.agent-layer/.env`
 - Creates an automatic snapshot for managed upgrade targets and auto-rolls back if an upgrade step fails
@@ -477,26 +479,45 @@ Think of sync as a build step. You can run it any time you want to refresh gener
 **What it does**
 
 - Validates `.agent-layer/config.toml`
-- Reads `.agent-layer/instructions/`, `.agent-layer/slash-commands/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
+- Reads `.agent-layer/instructions/`, `.agent-layer/skills/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
 - Regenerates client outputs and launchers
 
 **Steps (high level)**
 
 1. Load and validate `config.toml`, then resolve secrets from `.agent-layer/.env`.
-2. Parse instructions and slash commands to build client-specific outputs.
+2. Parse instructions and skills to build client-specific outputs.
 3. Write generated configs and launchers for enabled clients.
 4. Emit warnings if any thresholds in `[warnings]` are exceeded.
 
-**Slash command format**
+**Skill format**
 
-Each file in `.agent-layer/slash-commands/` must be a Markdown file with YAML frontmatter:
+Skill sources align with the [agentskills.io specification](https://agentskills.io/specification), with explicit backward-compatibility behavior documented below.
 
-- `description` (required): short description of the command
+`.agent-layer/skills/` uses directory format:
+
+- `.agent-layer/skills/<name>/SKILL.md` (canonical; lowercase `skill.md` is accepted as a compatibility fallback)
+
+Frontmatter fields:
+
+- Required: `name`, `description`
+- Optional: `license`, `compatibility`, `metadata`, `allowed-tools`
+
+Validation notes (`al doctor`):
+
+- Name checks are NFKC-normalized and normalization-aware when matching `name` to the canonical source name.
+- Name limits: max 64 Unicode characters, lowercase letters/digits/hyphens only, no leading/trailing/consecutive hyphens.
+- Description limit: max 1024 Unicode characters.
+- Compatibility limit (when present): max 500 Unicode characters.
+- Size recommendation: `al doctor` warns when a skill source exceeds 500 lines.
+- Missing `name` remains load-compatible (name is derived from path), but `al doctor` warns.
+- Missing or empty `description` fails load/sync (fail-loud).
+- Directory skills using lowercase `skill.md` load for compatibility, but `al doctor` warns to use canonical `SKILL.md`.
 
 Example:
 
 ```md
 ---
+name: code-audit
 description: Run a code quality audit.
 ---
 # Your command body here

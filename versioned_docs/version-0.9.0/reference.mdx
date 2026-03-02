@@ -40,22 +40,28 @@ mode = "all"
 enabled = true
 # model is optional; when omitted, the client uses its default.
 # model = "..."
+# reasoning_effort is not currently supported for Gemini in Agent Layer.
 
 [agents.claude]
 enabled = true
 # model = "..."
-# local_config_dir isolates Claude Code auth, caches, and user settings per repo.
+# reasoning_effort is optional for Opus models only.
+# reasoning_effort = "medium" # low | medium | high
+# local_config_dir isolates Claude Code settings and caches per repo.
 # When true, al claude sets CLAUDE_CONFIG_DIR=<repo>/.claude-config.
 # For al vscode, CLAUDE_CONFIG_DIR is set only when both local_config_dir
-# and agents.claude-vscode are enabled. Otherwise, al vscode clears only
+# and agents.claude_vscode are enabled. Otherwise, al vscode clears only
 # stale repo-local values and preserves user-defined non-repo values.
+# Note: auth is stored globally by Claude Code in the OS credential store
+# (macOS Keychain service "Claude Code-credentials"; Linux libsecret/gnome-keyring)
+# regardless of this setting (upstream limitation).
 # local_config_dir = false
 # Optional agent-specific passthrough config for Claude (arbitrary JSON keys).
 # These are shallow-merged at the top level into .claude/settings.json.
 # Nested objects are replaced (not deep-merged).
 # [agents.claude.agent_specific]
 
-[agents.claude-vscode]
+[agents.claude_vscode]
 enabled = true
 
 [agents.codex]
@@ -91,7 +97,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem@2026.1.14", "${AL_REPO_RO
 # Optional thresholds for warning checks. Omit or comment out to disable.
 # Warn when a newer Agent Layer version is available during sync runs.
 version_update_on_sync = true
-# Warning output noise control: "default" keeps all warnings, "reduce" hides suppressible non-critical warnings.
+# Warning output noise control: "default" keeps all warnings, "reduce" hides suppressible non-critical warnings,
+# and "quiet" suppresses agent-layer informational output (warnings still print in `al doctor`).
 noise_mode = "default"
 instruction_token_threshold = 10000
 mcp_server_threshold = 15
@@ -118,13 +125,13 @@ Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.clau
 
 ### Agents
 
-Each agent has an `enabled` flag and optional `model` value. Codex also supports `reasoning_effort`, which is optional; omit it (and `model`) to use the client defaults. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo credential isolation. For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude-vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
+Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`) for Opus models; Codex supports `reasoning_effort` with its own set of options. Omit `reasoning_effort` (and `model`) to use the client defaults. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
 
 Supported agents:
 
 - `gemini`
 - `claude`
-- `claude-vscode`
+- `claude_vscode`
 - `codex`
 - `vscode`
 - `antigravity`
@@ -139,7 +146,7 @@ Each `[[mcp.servers]]` entry must include:
 
 Optional fields:
 
-- `clients` to restrict which clients receive a server (valid values: `gemini`, `claude`, `vscode`, `codex`, `antigravity`; note that `claude-vscode` uses the `claude` client)
+- `clients` to restrict which clients receive a server (valid values: `gemini`, `claude`, `vscode`, `codex`, `antigravity`; note that `claude_vscode` uses the `claude` client)
 - `http_transport` (`sse` or `streamable`) for HTTP servers
 - `headers` for HTTP auth and metadata
 - `command`, `args`, `env` for stdio servers
@@ -208,6 +215,7 @@ Set `noise_mode` to control warning verbosity:
 
 - `default`: keep all warnings (recommended)
 - `reduce`: hide only suppressible non-critical warnings
+- `quiet`: suppress agent-layer informational output (warnings still print in `al doctor`)
 
 ### Validation rules
 
@@ -335,7 +343,7 @@ It is scaffolding: it creates the files that make behavior explicit and repeatab
 
 Typical `.agent-layer/` files include:
 
-- `config.toml` (seeded if missing; user-owned), `commands.allow`, `instructions/`, `slash-commands/`
+- `config.toml` (seeded if missing; user-owned), `commands.allow`, `instructions/`, `skills/`
 - `al.version` (repo pin; required)
 - `.env` (seeded if missing; user-owned secrets, always gitignored)
 - `.gitignore` (internal ignores) and `gitignore.block` (root `.gitignore` template)
@@ -347,7 +355,7 @@ Typical `.agent-layer/` files include:
 
 Typical project memory files under `docs/agent-layer/`:
 
-- `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`
+- `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`
 
 **Wizard prompt**
 
@@ -373,7 +381,7 @@ In non-interactive environments, the wizard is skipped.
 - Updates `.agent-layer/al.version` to match the currently running `al` binary
 - Prompts before overwriting managed template files unless apply flags are explicitly selected
 - Shows line-level diff previews before overwrite decisions by default
-- In the default interactive flow, prompts about unknown files under `.agent-layer` and only deletes them if you explicitly approve
+- In the default interactive flow, prompts about unknown files under `.agent-layer/` and `docs/agent-layer/` and only deletes them if you explicitly approve
 - In non-interactive or explicit-category apply (e.g., `--yes --apply-managed-updates`), requires the separate `--apply-deletions` flag before unknown files are eligible for deletion
 - Never overwrites `.agent-layer/config.toml` or `.agent-layer/.env`
 - Creates an automatic snapshot for managed upgrade targets and auto-rolls back if an upgrade step fails
@@ -439,13 +447,21 @@ Use it when you want to get to a safe, working configuration quickly, or when yo
 - `.agent-layer/config.toml`
 - `.agent-layer/.env`
 
-The wizard rewrites `config.toml` in the template-defined order and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files.
+The wizard rewrites `config.toml` in a deterministic preferred section order and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files.
 
 Additional modes:
 
 - `al wizard --profile /path/to/profile.toml`: preview-only profile rewrite diff
 - `al wizard --profile /path/to/profile.toml --yes`: apply profile and run sync
 - `al wizard --cleanup-backups`: delete `.agent-layer/config.toml.bak` and `.agent-layer/.env.bak`
+
+**Navigation**
+
+- **Arrow keys**: Navigate options
+- **Space / x**: Toggle selection (multi-select steps)
+- **Enter**: Confirm and continue
+- **Esc**: Go back to the previous step (on the first step, prompts to exit)
+- **Ctrl+C**: Exit immediately without saving changes
 
 Secret prompt controls:
 
@@ -463,26 +479,45 @@ Think of sync as a build step. You can run it any time you want to refresh gener
 **What it does**
 
 - Validates `.agent-layer/config.toml`
-- Reads `.agent-layer/instructions/`, `.agent-layer/slash-commands/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
+- Reads `.agent-layer/instructions/`, `.agent-layer/skills/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
 - Regenerates client outputs and launchers
 
 **Steps (high level)**
 
 1. Load and validate `config.toml`, then resolve secrets from `.agent-layer/.env`.
-2. Parse instructions and slash commands to build client-specific outputs.
+2. Parse instructions and skills to build client-specific outputs.
 3. Write generated configs and launchers for enabled clients.
 4. Emit warnings if any thresholds in `[warnings]` are exceeded.
 
-**Slash command format**
+**Skill format**
 
-Each file in `.agent-layer/slash-commands/` must be a Markdown file with YAML frontmatter:
+Skill sources align with the [agentskills.io specification](https://agentskills.io/specification), with explicit backward-compatibility behavior documented below.
 
-- `description` (required): short description of the command
+`.agent-layer/skills/` uses directory format:
+
+- `.agent-layer/skills/<name>/SKILL.md` (canonical; lowercase `skill.md` is accepted as a compatibility fallback)
+
+Frontmatter fields:
+
+- Required: `name`, `description`
+- Optional: `license`, `compatibility`, `metadata`, `allowed-tools`
+
+Validation notes (`al doctor`):
+
+- Name checks are NFKC-normalized and normalization-aware when matching `name` to the canonical source name.
+- Name limits: max 64 Unicode characters, lowercase letters/digits/hyphens only, no leading/trailing/consecutive hyphens.
+- Description limit: max 1024 Unicode characters.
+- Compatibility limit (when present): max 500 Unicode characters.
+- Size recommendation: `al doctor` warns when a skill source exceeds 500 lines.
+- Missing `name` remains load-compatible (name is derived from path), but `al doctor` warns.
+- Missing or empty `description` fails load/sync (fail-loud).
+- Directory skills using lowercase `skill.md` load for compatibility, but `al doctor` warns to use canonical `SKILL.md`.
 
 Example:
 
 ```md
 ---
+name: code-audit
 description: Run a code quality audit.
 ---
 # Your command body here

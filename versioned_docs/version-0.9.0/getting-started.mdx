@@ -16,7 +16,7 @@ After you complete this page, you will have:
 
 Agent Layer does not replace your client, and it does not run as a hosted service. It runs locally, writes files into your repo, and lets you keep the “source of truth” close to the code it governs.
 
-This is enough to be productive immediately. The refinements (custom slash commands, additional MCP servers, version pinning) can be layered in as your needs grow.
+This is enough to be productive immediately. The refinements (custom skills, additional MCP servers, version pinning) can be layered in as your needs grow.
 
 ## In this page
 
@@ -86,7 +86,7 @@ From here on, treat `al <client>` as your entry point. Syncing happens first so 
 Edit these files to make the agent behave the way you want:
 
 - `.agent-layer/instructions/` for global rules and preferences
-- `.agent-layer/slash-commands/` for reusable workflows
+- `.agent-layer/skills/` for reusable workflows (aligned with the [agentskills.io specification](https://agentskills.io/specification))
 - `.agent-layer/commands.allow` to define approved shell command prefixes
 - `.agent-layer/config.toml` for approvals, agent enablement, models, MCP servers, and warnings
 
@@ -150,7 +150,7 @@ Typical layout:
 .agent-layer/
   config.toml          # approvals, agents, models, MCP servers, warnings
   instructions/        # numbered instruction fragments
-  slash-commands/      # one file per command
+  skills/             # <name>/SKILL.md
   commands.allow       # approved shell command prefixes
   al.version           # repo pin (required)
   .env                 # secrets (always gitignored)
@@ -160,6 +160,8 @@ Typical layout:
   state/managed-baseline.json # managed ownership baseline state
   tmp/                 # agent-only artifacts
 ```
+
+Skill sources follow the [agentskills.io specification](https://agentskills.io/specification). All skills use directory format (`.agent-layer/skills/<name>/SKILL.md`). Canonical `SKILL.md` is preferred; lowercase `skill.md` is accepted as a compatibility fallback but triggers an `al doctor` warning.
 
 ### Project memory (`docs/agent-layer/`)
 
@@ -172,6 +174,7 @@ docs/agent-layer/
   ROADMAP.md
   DECISIONS.md
   COMMANDS.md
+  CONTEXT.md
 ```
 
 Teams can choose to commit these files or keep them local.
@@ -213,11 +216,11 @@ If you change generated files, those edits will be overwritten the next time you
 :::
 
 :::note
-The Codex VS Code extension reads `CODEX_HOME` at startup. Repo-local launchers set a per-repo value, so you will need to reauthenticate with Codex when opening a different repo. If you enable `local_config_dir = true` under `[agents.claude]` (and `[agents.claude-vscode]` is enabled), the Claude extension also receives a per-repo `CLAUDE_CONFIG_DIR`, providing isolated authentication and credential separation across repositories.
+The Codex VS Code extension reads `CODEX_HOME` at startup. Repo-local launchers set a per-repo value, so you will need to reauthenticate with Codex when opening a different repo. If you enable `local_config_dir = true` under `[agents.claude]` (and `[agents.claude_vscode]` is enabled), the Claude extension also receives a per-repo `CLAUDE_CONFIG_DIR`, isolating settings and caches per repository.
+
+**Known upstream limitation:** Claude Code currently stores auth credentials in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of `CLAUDE_CONFIG_DIR`, so authentication is always shared globally until this is fixed upstream.
 
 If you prefer to launch VS Code without the repo-local launcher, see the Codex and Claude fallback guidance in troubleshooting: [Global MCP server fallback for VS Code (Codex)](./troubleshooting#global-mcp-server-fallback-for-vs-code-codex) and [Global config fallback for VS Code (Claude)](./troubleshooting#global-config-fallback-for-vs-code-claude).
-
-Enabling repo-local `CLAUDE_CONFIG_DIR` means Claude authentication state becomes repo-scoped, so expect a one-time reauthentication the first time you open each repository after setting `local_config_dir = true`.
 :::
 
 ### Safe to delete

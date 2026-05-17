@@ -1,0 +1,87 @@
+---
+title: Upgrade checklist
+description: One-page upgrade checklist for interactive teams and CI.
+sidebar_position: 7
+---
+
+Use this page when you want a repeatable, low-risk upgrade runbook.
+
+## Interactive team checklist
+
+1. Update the global `al` CLI.
+   - Homebrew: `brew upgrade conn-castle/tap/agent-layer`
+   - Script: `curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh | bash`
+2. Confirm the installed version:
+   ```bash
+   al --version
+   ```
+3. Optional: pre-warm cache for offline or constrained runners:
+   ```bash
+   al upgrade prefetch --version X.Y.Z
+   ```
+4. Preview changes before any writes:
+   ```bash
+   al upgrade plan
+   ```
+5. Apply changes:
+   ```bash
+   al upgrade
+   ```
+6. Validate generated outputs and connectivity:
+   ```bash
+   al sync
+   al doctor
+   ```
+7. If needed, restore a snapshot:
+   ```bash
+   al upgrade rollback --list
+   al upgrade rollback <snapshot-id>
+   ```
+
+## CI checklist (managed updates only)
+
+Use this when CI should apply managed template updates without memory/deletion changes:
+
+```bash
+al upgrade --yes --apply-managed-updates
+al sync
+al doctor
+```
+
+Only add these flags when intentionally applying those categories:
+
+- `--apply-memory-updates` — apply updates to files under `docs/agent-layer/`
+- `--apply-deletions` — delete unknown files under `.agent-layer/` and `docs/agent-layer/` **except** `.agent-layer/tmp/`
+- `--apply-tmp-deletions` — destructively delete files under `.agent-layer/tmp/` (ephemeral agent run artifacts; not snapshotted, not rollback-restorable). Requires `--yes` and is independent of `--apply-deletions`.
+
+:::warning Tmp deletions are destructive and not rollback-protected
+`--apply-tmp-deletions` permanently removes everything under `.agent-layer/tmp/`. The pre-upgrade snapshot does **not** capture tmp content, so `al upgrade rollback <snapshot-id>` will not bring back deleted plans, reports, or scratch files. Use this flag only when you are sure CI does not host any in-progress agent artifacts you need to keep. See [Ephemeral artifacts under .agent-layer/tmp/](./reference#ephemeral-artifacts-under-agent-layertmp) for the full contract.
+:::
+
+## Shell quick paths (macOS/Linux)
+
+### bash / zsh
+
+```bash
+brew upgrade conn-castle/tap/agent-layer || \
+  curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh | bash
+al upgrade plan
+al upgrade
+```
+
+### fish
+
+```fish
+brew upgrade conn-castle/tap/agent-layer; or \
+  curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh | bash
+al upgrade plan
+al upgrade
+```
+
+## Notes
+
+- `.agent-layer/al.version` is required for supported usage.
+- `al upgrade prefetch` is the recommended cache warm-up command for offline/air-gapped workflows.
+- Snapshot IDs are JSON filename stems under `.agent-layer/state/upgrade-snapshots/` (run `al upgrade rollback --list` to discover them quickly).
+- Snapshots intentionally exclude `.agent-layer/tmp/`. Rollback will not restore tmp files — if you have in-progress agent artifacts under tmp that must survive an upgrade, copy them out before running `al upgrade`.
+- For policy guarantees and release migration rules, see [Upgrades](./upgrades).

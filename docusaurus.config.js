@@ -180,6 +180,18 @@ const config = {
         },
         items: [
           { to: "/docs", label: "Docs", position: "left" },
+          {
+            type: "dropdown",
+            to: "/best-practices",
+            label: "Best Practices",
+            position: "left",
+            items: [
+              { to: "/best-practices", label: "Overview" },
+              { to: "/skill-design", label: "Skill Design" },
+              { to: "/cli-skill-design", label: "CLI Skill Design" },
+              { to: "/instruction-design", label: "Instruction Design" },
+            ],
+          },
           { to: "/install", label: "Install", position: "left" },
           { to: "/security", label: "Security", position: "left" },
           { to: "/faq", label: "FAQ", position: "left" },

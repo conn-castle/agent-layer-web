@@ -41,6 +41,17 @@ function Footer() {
               <li><a href="https://github.com/conn-castle/agent-layer/issues" target="_blank" rel="noopener noreferrer">Issues</a></li>
             </ul>
           </div>
+
+          {/* Best Practices */}
+          <div className="footer-links-column">
+            <h3 className="footer-column-title">Best Practices</h3>
+            <ul className="footer-links-list">
+              <li><Link to="/best-practices">Overview</Link></li>
+              <li><Link to="/skill-design">Skill Design</Link></li>
+              <li><Link to="/cli-skill-design">CLI Skill Design</Link></li>
+              <li><Link to="/instruction-design">Instruction Design</Link></li>
+            </ul>
+          </div>
         </div>
 
         {/* Bottom Bar */}

@@ -11,7 +11,7 @@ If you run more than one client, Agent Layer prevents drift and gives you a sing
 ## Does Agent Layer align with the skills standard?
 Yes. Skill parsing and validation align with the [agentskills.io specification](https://agentskills.io/specification), including canonical directory `SKILL.md` naming with a compatibility fallback for lowercase `skill.md`.
 
-## Does Agent Layer install Claude/Codex/Gemini/Copilot CLI/VS Code?
+## Does Agent Layer install Claude/Codex/Antigravity/Copilot CLI/VS Code?
 No. Install client CLIs separately and ensure they are on your `PATH`.
 
 ## What do I edit vs what gets generated?
@@ -19,8 +19,8 @@ You edit `.agent-layer/`. Agent Layer generates client-specific outputs in each 
 
 Rule of thumb: generated files include:
 
-- Instruction shims: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`
-- Agent config: `.mcp.json`, `.gemini/settings.json`, `.claude/settings.json`, `.copilot/mcp-config.json`
+- Instruction shims: `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`
+- Agent config: `.mcp.json`, `.agy/antigravity-cli/settings.json`, `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.copilot/mcp-config.json`
 - Shared skills: `.agents/skills/`
 - Claude skills: `.claude/skills/`
 - Codex config and rules: `.codex/`
@@ -118,9 +118,9 @@ Agent Layer does not install or sandbox MCP servers. It runs exactly what you co
 ## Does Agent Layer ever delete files?
 In the default interactive `al upgrade` flow, Agent Layer may prompt about unknown files under `.agent-layer/` and will only delete them if you explicitly approve. For non-interactive or explicit-category apply (e.g., `--yes --apply-managed-updates`), unknown-file deletions require the separate `--apply-deletions` flag.
 
-Files under `.agent-layer/tmp/` (ephemeral agent run artifacts: plans, reports, scratch dumps) are protected by stricter rules. The interactive prompt requires a destructive **double-confirm** that defaults to "no". Non-interactive deletion requires the dedicated `--apply-tmp-deletions` flag — `--apply-deletions` alone never touches tmp content. The interactive "delete all unknowns?" choice is also scoped to skip tmp; the grouped tmp prompt always fires separately. See [/docs/reference#ephemeral-artifacts-under-agent-layertmp](/docs/reference#ephemeral-artifacts-under-agent-layertmp).
+Files under `.agent-layer/tmp/` (ephemeral agent run artifacts: plans, reports, scratch dumps) are protected by stricter rules. The interactive prompt requires a destructive **double-confirm** that defaults to "no". Non-interactive deletion requires the dedicated `--apply-tmp-deletions` flag — `--apply-deletions` alone never touches tmp content. The interactive "delete all unknowns?" choice is also scoped to skip tmp; the grouped tmp prompt always fires separately. See [/docs/reference](/docs/reference).
 
 ## Will rollback restore files I had under .agent-layer/tmp/?
 No. Pre-upgrade snapshots intentionally exclude `.agent-layer/tmp/` so they stay small (tmp can accumulate hundreds of MB of agent run artifacts). `al upgrade rollback <snapshot-id>` will not recreate plans, reports, or scratch files that were under tmp. If you need to keep an in-progress agent artifact across an upgrade, copy it out of `.agent-layer/tmp/` first.
 
-See [/docs/upgrades#ephemeral-artifacts-and-rollback-scope](/docs/upgrades#ephemeral-artifacts-and-rollback-scope) for the full contract.
+See [/docs/upgrades](/docs/upgrades) for the full contract.

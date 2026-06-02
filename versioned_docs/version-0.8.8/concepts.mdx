@@ -94,8 +94,7 @@ Use them sparingly:
 
 If you find yourself carrying many permanent overrides, that is usually a sign the setting should become a first-class key in `.agent-layer/config.toml`.
 
-<a id="per-repo-credential-isolation"></a>
-## Per-repo isolation
+## Per-repo isolation {#per-repo-credential-isolation}
 
 Agent Layer gives each repository its own agent configuration so work in one repo never leaks into another. Codex credential isolation is fully supported. Claude settings and caches isolation is supported, but Claude auth credential isolation is blocked by an upstream limitation (see below).
 

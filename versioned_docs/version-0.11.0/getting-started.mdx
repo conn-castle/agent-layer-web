@@ -16,7 +16,7 @@ After you complete this page, you will have:
 
 Agent Layer does not replace your client, and it does not run as a hosted service. It runs locally, writes files into your repo, and lets you keep the “source of truth” close to the code it governs.
 
-This is enough to be productive immediately. The refinements (custom slash commands, additional MCP servers, version pinning) can be layered in as your needs grow.
+This is enough to be productive immediately. The refinements (custom skills, additional MCP servers, version pinning) can be layered in as your needs grow.
 
 ## In this page
 
@@ -32,7 +32,7 @@ Quick start is the shortest path to a working agent. You can always refine confi
 ### Prerequisites
 
 - Install the Agent Layer CLI (`al`)
-- Install the target client (Gemini, Claude, Codex, VS Code, Antigravity)
+- Install the target client (Antigravity `agy`, Claude, Codex, Copilot CLI, VS Code)
 
 Agent Layer does not install client CLIs for you. If you already have `al` installed, skip to step 2.
 
@@ -58,22 +58,21 @@ al init
 This seeds:
 
 - `.agent-layer/` (your configuration)
-- `docs/agent-layer/` (project memory)
 - a managed `.gitignore` block
 
-By default, `al init` prompts to run the setup wizard. Skip it with `--no-wizard` if you prefer to configure manually.
+By default, `al init` prompts to run the setup wizard. The wizard can add the optional workflow bundle, including `docs/agent-layer/` project memory. Skip it with `--no-wizard` if you prefer to configure manually.
 
-`al init` is designed to be safe to re-run. It is scaffolding: it does not touch your application code, it just creates the files Agent Layer needs.
+`al init` is intended to be run once per repo. If `.agent-layer/` already exists, `al init` errors; use `al upgrade plan` and `al upgrade` to refresh template-managed files.
 
-For the detailed behavior and overwrite rules, see [Init](./reference#init) and [Wizard](./reference#wizard).
+For detailed behavior, see [Init](./reference#init), [Upgrade](./reference#upgrade), and [Wizard](./reference#wizard).
 
 ### 3) Launch an agent
 
 ```bash
-al gemini
+al agy
 ```
 
-Any client command (gemini/claude/codex/vscode/antigravity) will:
+Any client command (agy/claude/codex/copilot/vscode) will:
 
 1. read `.agent-layer/`
 2. sync client configs
@@ -86,7 +85,7 @@ From here on, treat `al <client>` as your entry point. Syncing happens first so 
 Edit these files to make the agent behave the way you want:
 
 - `.agent-layer/instructions/` for global rules and preferences
-- `.agent-layer/slash-commands/` for reusable workflows
+- `.agent-layer/skills/` for reusable workflows (aligned with the [agentskills.io specification](https://agentskills.io/specification))
 - `.agent-layer/commands.allow` to define approved shell command prefixes
 - `.agent-layer/config.toml` for approvals, agent enablement, models, MCP servers, and warnings
 
@@ -94,9 +93,9 @@ Everything is plain text and local to the repo, which makes it easy to review ch
 
 ### 5) Enable an MCP server (optional)
 
-This is where agents usually start to feel dramatically more capable. MCP servers let them retrieve fresh information, search your repo quickly, and integrate with real systems instead of relying only on training data and whatever context you pasted into the prompt.
+MCP servers unlock additional capability. They allow agents to retrieve current information, search your repository efficiently, and integrate with external systems instead of relying only on model training data and prompt context.
 
-`al init` seeds a small library of high-value MCP servers in `.agent-layer/config.toml`, all disabled by default. Two great first picks are:
+`al init` creates an empty `[mcp]` section. Run `al wizard` to choose from the embedded MCP catalog, or add server blocks by hand. Two great first picks are:
 
 - `context7` for up-to-date library docs and examples (requires an API key)
 - `tavily` for web search/research and recency (requires an API key)
@@ -111,7 +110,7 @@ id = "context7"
 enabled = true
 transport = "stdio"
 command = "npx"
-args = ["-y", "@upstash/context7-mcp"]
+args = ["-y", "@upstash/context7-mcp@2.1.1"]
 env = { CONTEXT7_API_KEY = "${AL_CONTEXT7_API_KEY}" }
 ```
 
@@ -150,18 +149,22 @@ Typical layout:
 .agent-layer/
   config.toml          # approvals, agents, models, MCP servers, warnings
   instructions/        # numbered instruction fragments
-  slash-commands/      # one file per command
+  skills/             # <name>/SKILL.md
   commands.allow       # approved shell command prefixes
-  al.version           # optional repo pin
+  al.version           # repo pin (required)
   .env                 # secrets (always gitignored)
-  .gitignore           # ignores repo-local launchers, backups, templates
+  .gitignore           # ignores repo-local launchers, backups, templates, and state
   gitignore.block      # managed .gitignore block template
+  templates/docs/      # embedded memory template snapshots
+  state/managed-baseline.json # managed ownership baseline state
   tmp/                 # agent-only artifacts
 ```
 
+Skill sources follow the [agentskills.io specification](https://agentskills.io/specification). All skills use directory format (`.agent-layer/skills/<name>/SKILL.md`). Canonical `SKILL.md` is preferred; lowercase `skill.md` is accepted as a compatibility fallback but triggers an `al doctor` warning.
+
 ### Project memory (`docs/agent-layer/`)
 
-These files are referenced by default instructions and act as long-lived memory for the repo:
+These files are created when you select the workflow bundle in `al wizard`. The bundled memory instructions reference them as long-lived memory for the repo:
 
 ```text
 docs/agent-layer/
@@ -170,6 +173,7 @@ docs/agent-layer/
   ROADMAP.md
   DECISIONS.md
   COMMANDS.md
+  CONTEXT.md
 ```
 
 Teams can choose to commit these files or keep them local.
@@ -184,17 +188,18 @@ Different clients require different file formats and conventions. Agent Layer ge
 # Instruction shims (generated from .agent-layer/instructions/*.md)
 AGENTS.md
 CLAUDE.md
-GEMINI.md
 .github/copilot-instructions.md
 
 # Client configs and artifacts (generated based on enabled clients)
-.agent/skills/
-.gemini/settings.json
+.agents/skills/
+.agy/antigravity-cli/settings.json
+.agy/antigravity-cli/mcp_config.json
 .claude/settings.json
+.claude/skills/
 .mcp.json
 .codex/
+.copilot/mcp-config.json
 .vscode/mcp.json
-.vscode/prompts/
 .vscode/settings.json
 
 # Repo-local launchers (VS Code, when enabled)
@@ -211,20 +216,24 @@ If you change generated files, those edits will be overwritten the next time you
 :::
 
 :::note
-The Codex VS Code extension reads `CODEX_HOME` at startup. Repo-local launchers set a per-repo `CODEX_HOME`, so you will need to reauthenticate when opening a different repo. This is expected and keeps credentials isolated. A practical benefit is that you can use different Codex accounts across repositories, such as one for personal projects and one for work, without mixing credentials.
+The Codex VS Code extension reads `CODEX_HOME` at startup. Repo-local launchers set a per-repo value, so you will need to reauthenticate with Codex when opening a different repo. If you enable `local_config_dir = true` under `[agents.claude]` (and `[agents.claude_vscode]` is enabled), the Claude extension also receives a per-repo `CLAUDE_CONFIG_DIR`, isolating settings and caches per repository.
+
+**Known upstream limitation:** Claude Code currently stores auth credentials in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of `CLAUDE_CONFIG_DIR`, so authentication is always shared globally until this is fixed upstream.
+
+If you prefer to launch VS Code without the repo-local launcher, see the Codex and Claude fallback guidance in troubleshooting: [Global MCP server fallback for VS Code (Codex)](./troubleshooting#global-mcp-server-fallback-for-vs-code-codex) and [Global config fallback for VS Code (Claude)](./troubleshooting#global-config-fallback-for-vs-code-claude).
 :::
 
 ### Safe to delete
 
 You can delete generated outputs at any time. Running `al sync` or `al <client>` will recreate them from `.agent-layer/`.
 
-If you keep your own files under `.vscode/`, delete only the Agent Layer-managed files (`.vscode/mcp.json` and `.vscode/prompts/`). Agent Layer also inserts/updates a managed block in `.vscode/settings.json`.
+If you keep your own files under `.vscode/`, delete only the Agent Layer-managed files (`.vscode/mcp.json` and the managed block in `.vscode/settings.json`). Agent Layer also projects VS Code/GitHub Copilot skills through `.agents/skills/`.
 
 ### Git ignore defaults
 
-`al init` installs a managed `.gitignore` block that ignores `.agent-layer/` and generated client configs. If your team decides to commit `.agent-layer/`, edit `.agent-layer/gitignore.block` and re-run `al init`.
+`al init` installs a managed `.gitignore` block that ignores `.agent-layer/` and generated client configs. If your team decides to commit `.agent-layer/`, edit `.agent-layer/gitignore.block` and re-run `al sync` (or `al <client>`).
 
-`.agent-layer/gitignore.block` is the template. It should contain only ignore patterns and comments. Agent Layer copies it verbatim and injects the managed header and template hash only when updating the root `.gitignore`. If you see managed markers or a template hash inside `.agent-layer/gitignore.block`, re-run `al init --overwrite` to regenerate the template file.
+`.agent-layer/gitignore.block` is the template. It should contain only ignore patterns and comments. Agent Layer copies it verbatim and injects the managed header and template hash only when updating the root `.gitignore`. If you see managed markers or a template hash inside `.agent-layer/gitignore.block`, run `al upgrade` to restore the template file.
 
 When you are adopting Agent Layer as a team, this is the main choice to make: keep `.agent-layer/` local for experimentation, or commit it so every developer gets the same behavior by default. Secrets still live in `.agent-layer/.env`, which remains gitignored by `.agent-layer/.gitignore`.
 
@@ -240,8 +249,9 @@ Commit:
 Do not commit:
 
 - `.agent-layer/.env` (secrets)
+- `.agent-layer/state/managed-baseline.json` (machine-managed baseline state)
 - `.agent-layer/tmp/` (agent-only artifacts)
-- generated client outputs like `.agent/skills/`, `.gemini/settings.json`, `.claude/settings.json`, `.mcp.json`, `.codex/`, `.vscode/mcp.json`, `.vscode/prompts/`, `.vscode/settings.json`, `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+- generated client outputs like `.agents/skills/`, `.agy/`, `.antigravitycli/`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`, `.codex/`, `.copilot/`, `.vscode/mcp.json`, `.vscode/settings.json`, `.github/copilot-instructions.md`, `AGENTS.md`, `CLAUDE.md`
 
 ## CLI command map
 
@@ -254,16 +264,20 @@ If you only remember one pattern: `al <client>` is the “do the right thing” 
 | Command | Purpose | Details |
 | --- | --- | --- |
 | `al init` | Seed `.agent-layer/` and project memory. | [Init](./reference#init) |
+| `al upgrade` | Apply template-managed updates and update the repo pin with line-level diff previews (use `--diff-lines` to raise per-file preview size). | [Upgrade](./reference#upgrade) |
+| `al upgrade plan` | Preview categorized upgrade changes and line-level diffs without writing files. | [Upgrade plan](./reference#upgrade-plan) |
+| `al upgrade rollback --list` | List available upgrade snapshot IDs and statuses before rollback. | [Upgrade rollback](./reference#upgrade-rollback) |
+| `al upgrade rollback <snapshot-id>` | Restore a previously applied managed-file snapshot. | [Upgrade rollback](./reference#upgrade-rollback) |
 | `al wizard` | Interactive configuration. | [Wizard](./reference#wizard) |
 | `al sync` | Regenerate configs without launching. | [Sync](./reference#sync) |
 | `al doctor` | Validate config and probe MCP servers. | [Doctor](./reference#doctor) |
+| `al probe agy` | Report observed Antigravity capabilities. | [CLI guide](./reference#cli-guide) |
 | `al completion` | Print or install shell completions. | [Completion](./reference#completion) |
-| `al mcp-prompts` | Run internal MCP prompt server. | [MCP prompt server](./reference#mcp-prompt-server) |
-| `al gemini` | Sync and launch Gemini. | [Launch a client](./reference#launch-a-client) |
+| `al agy` | Sync and launch Antigravity. | [Launch a client](./reference#launch-a-client) |
 | `al claude` | Sync and launch Claude Code. | [Launch a client](./reference#launch-a-client) |
 | `al codex` | Sync and launch Codex. | [Launch a client](./reference#launch-a-client) |
 | `al vscode` | Sync and launch VS Code. | [Launch a client](./reference#launch-a-client) |
-| `al antigravity` | Sync and launch Antigravity. | [Launch a client](./reference#launch-a-client) |
+| `al copilot` | Sync and launch Copilot CLI. | [Launch a client](./reference#launch-a-client) |
 | `al --version` | Print the installed version. | [Help and version](./reference#help-and-version) |
 | `al help` | Show help for a command. | [Help and version](./reference#help-and-version) |
 

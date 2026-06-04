@@ -36,16 +36,16 @@ Never put secrets in `config.toml`. Secrets belong in `.agent-layer/.env`.
 # one of: "all", "mcp", "commands", "none", "yolo"
 mode = "all"
 
-[agents.gemini]
+[agents.antigravity]
 enabled = true
-# model is optional; when omitted, the client uses its default.
-# model = "..."
-# reasoning_effort is not currently supported for Gemini in Agent Layer.
+# Optional default when Antigravity calls `al dispatch` without --agent.
+# [agents.antigravity.dispatch]
+# default_agent = "random" # random | codex | claude | antigravity
 
 [agents.claude]
 enabled = true
 # model = "..."
-# reasoning_effort is optional for Opus models only.
+# reasoning_effort is optional; Claude Code applies it where the active model supports it.
 # reasoning_effort = "medium" # low | medium | high | xhigh | max (custom values pass through with a warning)
 # local_config_dir isolates Claude Code settings and caches per repo.
 # When true, al claude sets CLAUDE_CONFIG_DIR=<repo>/.claude-config.
@@ -60,6 +60,9 @@ enabled = true
 # Object values are deep-merged into .claude/settings.json; arrays and scalar values are replaced at their key.
 # Overlapping managed keys, such as permissions.allow, override Agent Layer-managed
 # values and trigger a sync warning. permissions.deny is additive and does not warn.
+# Optional default when Claude calls `al dispatch` without --agent.
+# [agents.claude.dispatch]
+# default_agent = "random" # random | codex | claude | antigravity
 # [agents.claude.agent_specific]
 
 [agents.claude_vscode]
@@ -74,15 +77,16 @@ enabled = true
 # Optional agent-specific passthrough config for Codex (arbitrary TOML tables/keys).
 # These are appended to .codex/config.toml and can override top-level managed keys.
 # Agent Layer already writes [projects."<repo root>"] trust_level = "trusted".
+# Optional default when Codex calls `al dispatch` without --agent.
+# [agents.codex.dispatch]
+# default_agent = "random" # random | codex | claude | antigravity
 # [agents.codex.agent_specific]
 # [agents.codex.agent_specific.features]
+# apps = false              # disable built-in Codex apps (Github, Gmail, etc.) to reduce tool surface
 # multi_agent = true
 # prevent_idle_sleep = true
 
 [agents.vscode]
-enabled = true
-
-[agents.antigravity]
 enabled = true
 
 [agents.copilot_cli]
@@ -133,16 +137,15 @@ Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.clau
 
 ### Agents
 
-Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`, `xhigh`, `max`) for Opus models; `max` is session-only and is passed via the `--effort` CLI flag (it is not written to settings.json). Custom values outside the catalog pass through with a sync-time warning so new effort levels work before agent-layer is updated. Codex supports `reasoning_effort` with its own set of options. Copilot CLI supports `model` but not `reasoning_effort`. Omit `reasoning_effort` (and `model`) to use the client defaults. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
+Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`, `xhigh`, `max`); Agent Layer passes the value through to Claude Code regardless of the selected model (including when `model` is unset), and Claude Code applies it where the active model supports it. `max` is session-only and is passed via the `--effort` CLI flag (it is not written to settings.json). Custom values outside the catalog pass through with a sync-time warning so new effort levels work before agent-layer is updated. Codex supports `reasoning_effort` with its own set of options. Copilot CLI supports `model` but not `reasoning_effort`. Omit `reasoning_effort` (and `model`) to use the client defaults. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
 
 Supported agents:
 
-- `gemini`
+- `antigravity`
 - `claude`
 - `claude_vscode`
 - `codex`
 - `vscode`
-- `antigravity`
 - `copilot_cli`
 
 ### MCP servers
@@ -155,10 +158,12 @@ Each `[[mcp.servers]]` entry must include:
 
 Optional fields:
 
-- `clients` to restrict which clients receive a server (valid values: `gemini`, `claude`, `vscode`, `codex`, `antigravity`, `copilot`; note that `claude_vscode` uses the `claude` client)
+- `clients` to restrict which clients receive a server (valid values: `antigravity`, `claude`, `vscode`, `codex`, `copilot`; note that `claude_vscode` uses the `claude` client)
 - `http_transport` (`sse` or `streamable`) for HTTP servers
 - `headers` for HTTP auth and metadata
 - `command`, `args`, `env` for stdio servers
+
+When a local command already has a useful help surface, compare MCP against a CLI skill before adding a server. The [CLI Skill Design Guide](/cli-skill-design) explains when MCP is the right interface and when live `--help` is the better source of truth.
 
 #### Secrets, placeholders, and client projection
 
@@ -175,7 +180,7 @@ Here is how placeholder projection works for MCP servers:
 | Client | Placeholder syntax in generated config |
 | --- | --- |
 | Claude Code (`.mcp.json`) | `${AL_TOKEN}` |
-| Gemini (`.gemini/settings.json`) | `${AL_TOKEN}` |
+| Antigravity (`.agy/antigravity-cli/mcp_config.json`) | `${AL_TOKEN}` |
 | VS Code (`.vscode/mcp.json`) | `${env:AL_TOKEN}` |
 | Codex (`.codex/config.toml`) | headers become env-var references; URLs/commands/args/env values are resolved because Codex does not support placeholders |
 | Copilot CLI (`.copilot/mcp-config.json`) | `${AL_TOKEN}` (env vars resolved at runtime by the client) |
@@ -226,6 +231,8 @@ Set `noise_mode` to control warning verbosity:
 - `default`: keep all warnings (recommended)
 - `reduce`: hide only suppressible non-critical warnings
 - `quiet`: suppress agent-layer informational output (warnings still print in `al doctor`)
+
+`al doctor` also prints a context size summary (instruction tokens, skill catalog-metadata tokens against a ~4,000-token budget, MCP totals against their thresholds, and an estimated total of the always-loaded token costs). It is informational, not a warning, so it always prints — even under `noise_mode = "quiet"` or `al --quiet doctor`. Thresholds left unset show `(no limit set)`.
 
 ### Validation rules
 
@@ -322,7 +329,10 @@ The command surface is intentionally small. Most of the time you only need one r
 | `al upgrade repair-gitignore-block` | Restore `.agent-layer/gitignore.block` from templates and reapply the root `.gitignore` managed block. |
 | `al wizard` | Interactive configuration plus profile mode (`--profile`) and backup cleanup (`--cleanup-backups`). |
 | `al sync` | Regenerate client configs without launching a client. |
-| `al <client>` | Sync and launch a client (gemini/claude/codex/copilot/vscode/antigravity). |
+| `al <client>` | Sync and launch a client (agy/claude/codex/copilot/vscode). |
+| `al dispatch` | Run a supported headless target (`codex`, `claude`, `antigravity`, or `random`) from an Agent Layer-launched caller. |
+| `al dispatch options --json` | Print the stable Agent Dispatch target/options contract for scripts. |
+| `al probe agy` | Run the Antigravity capability probe and print JSON. |
 | `al doctor` | Validate configuration and probe enabled MCP servers. |
 | `al completion` | Print or install shell completions (bash/zsh/fish). |
 | `al --version` | Print the installed Agent Layer version. |
@@ -339,13 +349,13 @@ It is scaffolding: it creates the files that make behavior explicit and repeatab
 **What it does**
 
 - Creates `.agent-layer/` (configuration, instructions, approvals, MCP servers)
-- Creates `docs/agent-layer/` (project memory files)
 - Installs a managed `.gitignore` block
+- Prompts to run `al wizard` in interactive shells, where the workflow bundle can create `docs/agent-layer/` memory files
 
 **Steps (high level)**
 
 1. Creates required directories.
-2. Writes template-managed files under `.agent-layer/` and `docs/agent-layer/` (seeds user-owned files only when missing).
+2. Writes operational template-managed files under `.agent-layer/` (seeds user-owned files only when missing).
 3. Adds or updates the managed `.gitignore` block.
 4. If running interactively, prompts to run the wizard unless `--no-wizard` is set.
 
@@ -363,7 +373,7 @@ Typical `.agent-layer/` files include:
 
 `.agent-layer/gitignore.block` is the template file. It must contain only ignore patterns and comments (no managed markers and no template hash). Agent Layer copies it verbatim and injects the managed header and template hash only when updating the root `.gitignore`. If the template file contains managed markers or a hash line, `al sync` will error; run `al upgrade` to restore the template file.
 
-Typical project memory files under `docs/agent-layer/`:
+The optional workflow bundle creates typical project memory files under `docs/agent-layer/`:
 
 - `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`
 
@@ -537,7 +547,7 @@ Think of sync as a build step. You can run it any time you want to refresh gener
 
 **Skill format**
 
-Skill sources align with the [agentskills.io specification](https://agentskills.io/specification), with explicit backward-compatibility behavior documented below.
+Skill sources align with the [agentskills.io specification](https://agentskills.io/specification), with explicit backward-compatibility behavior documented below. For authoring guidance, use the [Skill Design Guide](/skill-design); for installed command-line tools, use the [CLI Skill Design Guide](/cli-skill-design).
 
 `.agent-layer/skills/` uses directory format:
 
@@ -574,12 +584,12 @@ description: Run a code quality audit.
 Common outputs include:
 
 - `.agents/skills/`
-- `.gemini/settings.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.agy/antigravity-cli/settings.json`, `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
 - `.codex/` (generated config and rules)
 - `.copilot/mcp-config.json`
 - `.vscode/mcp.json` and a managed block in `.vscode/settings.json`
 - `.github/copilot-instructions.md`
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+- `AGENTS.md`, `CLAUDE.md`
 - repo-local VS Code launchers under `.agent-layer/` when VS Code is enabled (for example `open-vscode.command`, `open-vscode.sh`, and `open-vscode.app/`)
 
 These files are derived outputs and safe to delete. Running `al sync` will recreate them.
@@ -592,12 +602,11 @@ These files are derived outputs and safe to delete. Running `al sync` will recre
 
 `al <client>` syncs before launch by default. Supported clients:
 
-- `al gemini`
+- `al agy`
 - `al claude`
 - `al codex`
 - `al copilot`
 - `al vscode`
-- `al antigravity`
 
 These commands read `.agent-layer/`, regenerate client outputs, and then launch the selected client.
 
@@ -616,6 +625,29 @@ Examples:
 al claude -- --help
 al vscode --no-sync -- --reuse-window
 ```
+
+### Dispatch
+
+`al dispatch` lets an Agent Layer-launched caller run one supported headless target for a focused text task:
+
+```bash
+al dispatch --agent codex "Review this plan."
+al dispatch --agent random --skill review-plan "Review this plan."
+cat prompt.md | al dispatch --agent claude
+```
+
+Supported target values are `codex`, `claude`, `antigravity`, and `random`. When `--agent` is omitted, Agent Layer uses the env-only caller marker (`AL_DISPATCH_CALLER_AGENT`) and the caller's optional `agents.<caller>.dispatch.default_agent`, defaulting to `random`. Dispatch writes target answer text to stdout and status/errors to stderr, blocks nested calls with `AL_DISPATCH_ACTIVE=1`, and uses the selected target's generated config and permissions. See `docs/AGENT-DISPATCH.md` in the repository for the full v1 contract.
+
+**Exit codes**
+
+- `0` — dispatch completed successfully
+- `64` — usage or resolution failure (missing prompt and skill, unknown target, unknown caller with omitted `--agent`, unsupported override field for the selected target)
+- `65` — configuration or state failure (missing source skill, stale/missing target skill projection, malformed config, disabled target)
+- `69` — target unavailable (missing target binary, unauthenticated/unusable target CLI, no eligible target in the random-selection pool)
+- `70` — target or adapter failure (target subprocess non-zero exit, target rejection of a custom override value, changed structured stream shape, unreadable target output, internal dispatch error)
+- `75` — nested dispatch blocked (`AL_DISPATCH_ACTIVE=1` already set)
+- `130` — interrupted by `SIGINT`
+- `143` — terminated by `SIGTERM`
 
 ### Doctor
 

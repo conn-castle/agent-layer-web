@@ -19,7 +19,7 @@ Agent Layer is explicit by design. It prefers failing fast over guessing, and it
 
 ## Configuration
 
-`.agent-layer/config.toml` is the primary structured configuration file. It is the single source of truth for approvals, agents, MCP servers, and warning thresholds. If you treat one file as the contract, make it this one—everything else is derived from it.
+`.agent-layer/config.toml` is the primary structured configuration file. It is the single source of truth for approvals, dispatch limits, agents, MCP servers, and warning thresholds. If you treat one file as the contract, make it this one—everything else is derived from it.
 
 `al wizard` updates `config.toml` and `.agent-layer/.env`. Everything else is edited by hand.
 
@@ -35,6 +35,11 @@ Never put secrets in `config.toml`. Secrets belong in `.agent-layer/.env`.
 [approvals]
 # one of: "all", "mcp", "commands", "none", "yolo"
 mode = "all"
+
+[dispatch]
+# Maximum dispatch depth, including the initial `al dispatch` call.
+# 1 means a dispatched target cannot call `al dispatch` again.
+max_depth = 1
 
 [agents.antigravity]
 enabled = true
@@ -74,15 +79,19 @@ enabled = true
 # model = "gpt-5.3-codex"
 # reasoning_effort is optional; when omitted, the client uses its default.
 # reasoning_effort = "xhigh" # codex only
+# local_config_dir sets CODEX_HOME=<repo>/.codex for per-repo auth, sessions, logs, and runtime state.
+# When absent or false, Agent Layer does not set CODEX_HOME.
+# local_config_dir = false
 # Optional agent-specific passthrough config for Codex (arbitrary TOML tables/keys).
-# These are appended to .codex/config.toml and can override top-level managed keys.
-# Agent Layer already writes [projects."<repo root>"] trust_level = "trusted".
+# These are patched into .codex/config.toml and can override top-level managed keys.
+# Agent Layer seeds [projects."<repo root>"] trust_level = "trusted" only when
+# that exact project entry is absent.
 # Optional default when Codex calls `al dispatch` without --agent.
 # [agents.codex.dispatch]
 # default_agent = "random" # random | codex | claude | antigravity
 # [agents.codex.agent_specific]
 # [agents.codex.agent_specific.features]
-# apps = false              # disable built-in Codex apps (Github, Gmail, etc.) to reduce tool surface
+# apps = false              # disable built-in Codex apps (GitHub, Gmail, etc.) to reduce tool surface
 # multi_agent = true
 # prevent_idle_sleep = true
 
@@ -120,13 +129,14 @@ mcp_schema_tokens_total_threshold = 30000
 mcp_schema_tokens_server_threshold = 20000
 ```
 
-Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.claude.agent_specific` override Agent Layer-managed keys when they collide. Agent Layer emits a warning on every sync if you override managed keys. Codex project trust is managed automatically for the current absolute repo root. Claude `permissions.deny` is the one exception: it is deep-merged additively into `.claude/settings.json` and does not warn.
+Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.claude.agent_specific` override Agent Layer-managed keys when they collide. Agent Layer emits a warning on every sync if you override managed keys. `.codex/config.toml` is shared Codex state: `al sync` refreshes known Agent Layer-managed entries, preserves unrelated Codex/user runtime entries, and seeds current repo trust only when that exact project entry is absent. Claude `permissions.deny` is the one exception: it is deep-merged additively into `.claude/settings.json` and does not warn.
 
 ### Sections at a glance
 
 | Section | Purpose |
 | --- | --- |
 | `[approvals]` | auto-approval policy for commands and MCP tools |
+| `[dispatch]` | Agent Dispatch nesting depth limit (`max_depth`) |
 | `[agents.*]` | enablement and model selection per client |
 | `[[mcp.servers]]` | external MCP server definitions |
 | `[warnings]` | optional thresholds for token and server limits, plus sync update warnings |
@@ -137,7 +147,7 @@ Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.clau
 
 ### Agents
 
-Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`, `xhigh`, `max`); Agent Layer passes the value through to Claude Code regardless of the selected model (including when `model` is unset), and Claude Code applies it where the active model supports it. `max` is session-only and is passed via the `--effort` CLI flag (it is not written to settings.json). Custom values outside the catalog pass through with a sync-time warning so new effort levels work before agent-layer is updated. Codex supports `reasoning_effort` with its own set of options. Copilot CLI supports `model` but not `reasoning_effort`. Omit `reasoning_effort` (and `model`) to use the client defaults. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
+Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`, `xhigh`, `max`); Agent Layer passes the value through to Claude Code regardless of the selected model (including when `model` is unset), and Claude Code applies it where the active model supports it. `max` is session-only and is passed via the `--effort` CLI flag (it is not written to settings.json). Custom values outside the catalog pass through with a sync-time warning so new effort levels work before agent-layer is updated. Codex supports `reasoning_effort` with its own set of options. Copilot CLI supports `model` but not `reasoning_effort`. Omit `reasoning_effort` (and `model`) to use the client defaults. Codex supports `local_config_dir` (boolean, default `false`); when `true`, `al codex`, Codex dispatch, and `al vscode` set `CODEX_HOME=<repo>/.codex` for per-repo auth, sessions, logs, and runtime state. When absent or false, Agent Layer preserves any inherited `CODEX_HOME`. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
 
 Supported agents:
 
@@ -182,14 +192,14 @@ Here is how placeholder projection works for MCP servers:
 | Claude Code (`.mcp.json`) | `${AL_TOKEN}` |
 | Antigravity (`.agy/antigravity-cli/mcp_config.json`) | `${AL_TOKEN}` |
 | VS Code (`.vscode/mcp.json`) | `${env:AL_TOKEN}` |
-| Codex (`.codex/config.toml`) | headers become env-var references; URLs/commands/args/env values are resolved because Codex does not support placeholders |
+| Codex (`.codex/config.toml`) | headers become env-var references; URLs/commands/args/env values are resolved because Codex does not support placeholders; the file is shared Codex state patched by `al sync` |
 | Copilot CLI (`.copilot/mcp-config.json`) | `${AL_TOKEN}` (env vars resolved at runtime by the client) |
 
 Practical guidance:
 
 - Prefer secrets in headers (`headers = { Authorization = "Bearer ${AL_TOKEN}" }`) over secrets in URLs.
 - For maximum portability, keep non-Authorization secret headers as exact placeholders (for example `"X-Api-Key" = "${AL_API_KEY}"`), not mixed into longer strings.
-- Some services use API keys in URLs (for example the seeded Tavily template). In that case, remember clients like Codex may require a fully resolved URL and will write it only into gitignored outputs.
+- Some services use API keys in URLs (for example the seeded Tavily template). In that case, remember clients like Codex may require a fully resolved URL and will write it into gitignored shared state.
 
 #### HTTP example
 
@@ -239,6 +249,7 @@ Set `noise_mode` to control warning verbosity:
 Agent Layer validates `config.toml` on every run. Common validation rules:
 
 - `approvals.mode` must be one of `all`, `mcp`, `commands`, `none`, `yolo`
+- `dispatch.max_depth` must be a positive integer when set
 - `enabled` flags must be set for all agents and MCP servers
 - MCP transport must be `http` or `stdio`
 - `http_transport` (when set) must be `sse` or `streamable`
@@ -373,7 +384,7 @@ Typical `.agent-layer/` files include:
 
 `.agent-layer/gitignore.block` is the template file. It must contain only ignore patterns and comments (no managed markers and no template hash). Agent Layer copies it verbatim and injects the managed header and template hash only when updating the root `.gitignore`. If the template file contains managed markers or a hash line, `al sync` will error; run `al upgrade` to restore the template file.
 
-The optional workflow bundle creates typical project memory files under `docs/agent-layer/`:
+The optional workflow bundle creates missing project memory files under `docs/agent-layer/`:
 
 - `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`
 
@@ -636,7 +647,7 @@ al dispatch --agent random --skill review-plan "Review this plan."
 cat prompt.md | al dispatch --agent claude
 ```
 
-Supported target values are `codex`, `claude`, `antigravity`, and `random`. When `--agent` is omitted, Agent Layer uses the env-only caller marker (`AL_DISPATCH_CALLER_AGENT`) and the caller's optional `agents.<caller>.dispatch.default_agent`, defaulting to `random`. Dispatch writes target answer text to stdout and status/errors to stderr, blocks nested calls with `AL_DISPATCH_ACTIVE=1`, and uses the selected target's generated config and permissions. See `docs/AGENT-DISPATCH.md` in the repository for the full v1 contract.
+Supported target values are `codex`, `claude`, `antigravity`, and `random`. When `--agent` is omitted, Agent Layer uses the env-only caller marker (`AL_DISPATCH_CALLER_AGENT`) and the caller's optional `agents.<caller>.dispatch.default_agent`, defaulting to `random`. Dispatch writes target answer text to stdout and status/errors to stderr, limits nested calls with `dispatch.max_depth` (default `1`), and uses the selected target's generated config and permissions. See `docs/AGENT-DISPATCH.md` in the repository for the full v1 contract.
 
 **Exit codes**
 
@@ -645,7 +656,7 @@ Supported target values are `codex`, `claude`, `antigravity`, and `random`. When
 - `65` — configuration or state failure (missing source skill, stale/missing target skill projection, malformed config, disabled target)
 - `69` — target unavailable (missing target binary, unauthenticated/unusable target CLI, no eligible target in the random-selection pool)
 - `70` — target or adapter failure (target subprocess non-zero exit, target rejection of a custom override value, changed structured stream shape, unreadable target output, internal dispatch error)
-- `75` — nested dispatch blocked (`AL_DISPATCH_ACTIVE=1` already set)
+- `75` — nested dispatch blocked by `dispatch.max_depth` or invalid `AL_DISPATCH_ACTIVE`
 - `130` — interrupted by `SIGINT`
 - `143` — terminated by `SIGTERM`
 

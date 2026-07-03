@@ -19,7 +19,7 @@ Agent Layer is explicit by design. It prefers failing fast over guessing, and it
 
 ## Configuration
 
-`.agent-layer/config.toml` is the primary structured configuration file. It is the single source of truth for approvals, agents, MCP servers, and warning thresholds. If you treat one file as the contract, make it this one—everything else is derived from it.
+`.agent-layer/config.toml` is the primary structured configuration file. It is the single source of truth for approvals, dispatch limits, agents, MCP servers, and warning thresholds. If you treat one file as the contract, make it this one—everything else is derived from it.
 
 `al wizard` updates `config.toml` and `.agent-layer/.env`. Everything else is edited by hand.
 
@@ -36,17 +36,22 @@ Never put secrets in `config.toml`. Secrets belong in `.agent-layer/.env`.
 # one of: "all", "mcp", "commands", "none", "yolo"
 mode = "all"
 
-[agents.gemini]
+[dispatch]
+# Maximum dispatch depth, including the initial `al dispatch` call.
+# 1 means a dispatched target cannot call `al dispatch` again.
+max_depth = 1
+
+[agents.antigravity]
 enabled = true
-# model is optional; when omitted, the client uses its default.
-# model = "..."
-# reasoning_effort is not currently supported for Gemini in Agent Layer.
+# Optional default when Antigravity calls `al dispatch` without --agent.
+# [agents.antigravity.dispatch]
+# default_agent = "random" # random | codex | claude | antigravity
 
 [agents.claude]
 enabled = true
 # model = "..."
-# reasoning_effort is optional for Opus models only.
-# reasoning_effort = "medium" # low | medium | high
+# reasoning_effort is optional; Claude Code applies it where the active model supports it.
+# reasoning_effort = "medium" # low | medium | high | xhigh | max (custom values pass through with a warning)
 # local_config_dir isolates Claude Code settings and caches per repo.
 # When true, al claude sets CLAUDE_CONFIG_DIR=<repo>/.claude-config.
 # For al vscode, CLAUDE_CONFIG_DIR is set only when both local_config_dir
@@ -57,8 +62,12 @@ enabled = true
 # regardless of this setting (upstream limitation).
 # local_config_dir = false
 # Optional agent-specific passthrough config for Claude (arbitrary JSON keys).
-# These are shallow-merged at the top level into .claude/settings.json.
-# Nested objects are replaced (not deep-merged).
+# Object values are deep-merged into .claude/settings.json; arrays and scalar values are replaced at their key.
+# Overlapping managed keys, such as permissions.allow, override Agent Layer-managed
+# values and trigger a sync warning. permissions.deny is additive and does not warn.
+# Optional default when Claude calls `al dispatch` without --agent.
+# [agents.claude.dispatch]
+# default_agent = "random" # random | codex | claude | antigravity
 # [agents.claude.agent_specific]
 
 [agents.claude_vscode]
@@ -70,18 +79,30 @@ enabled = true
 # model = "gpt-5.3-codex"
 # reasoning_effort is optional; when omitted, the client uses its default.
 # reasoning_effort = "xhigh" # codex only
+# local_config_dir sets CODEX_HOME=<repo>/.codex for per-repo auth, sessions, logs, and runtime state.
+# When absent or false, Agent Layer does not set CODEX_HOME.
+# local_config_dir = false
 # Optional agent-specific passthrough config for Codex (arbitrary TOML tables/keys).
-# These are appended to .codex/config.toml and can override top-level managed keys.
+# These are patched into .codex/config.toml and can override top-level managed keys.
+# Agent Layer seeds [projects."<repo root>"] trust_level = "trusted" only when
+# that exact project entry is absent.
+# Optional default when Codex calls `al dispatch` without --agent.
+# [agents.codex.dispatch]
+# default_agent = "random" # random | codex | claude | antigravity
 # [agents.codex.agent_specific]
 # [agents.codex.agent_specific.features]
+# apps = false              # disable built-in Codex apps (GitHub, Gmail, etc.) to reduce tool surface
 # multi_agent = true
 # prevent_idle_sleep = true
 
 [agents.vscode]
 enabled = true
 
-[agents.antigravity]
+[agents.copilot_cli]
 enabled = true
+# model is optional; when omitted, the client uses its default.
+# model = "..."
+# reasoning_effort is not currently supported for Copilot CLI in Agent Layer.
 
 [mcp]
 # MCP servers are external tool servers projected into client configs.
@@ -97,7 +118,8 @@ args = ["-y", "@modelcontextprotocol/server-filesystem@2026.1.14", "${AL_REPO_RO
 # Optional thresholds for warning checks. Omit or comment out to disable.
 # Warn when a newer Agent Layer version is available during sync runs.
 version_update_on_sync = true
-# Warning output noise control: "default" keeps all warnings, "reduce" hides suppressible non-critical warnings.
+# Warning output noise control: "default" keeps all warnings, "reduce" hides suppressible non-critical warnings,
+# and "quiet" suppresses agent-layer informational output (warnings still print in `al doctor`).
 noise_mode = "default"
 instruction_token_threshold = 10000
 mcp_server_threshold = 15
@@ -107,13 +129,14 @@ mcp_schema_tokens_total_threshold = 30000
 mcp_schema_tokens_server_threshold = 20000
 ```
 
-Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.claude.agent_specific` override Agent Layer-managed keys when they collide. Agent Layer emits a warning on every sync if you override managed keys.
+Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.claude.agent_specific` override Agent Layer-managed keys when they collide. Agent Layer emits a warning on every sync if you override managed keys. `.codex/config.toml` is shared Codex state: `al sync` refreshes known Agent Layer-managed entries, preserves unrelated Codex/user runtime entries, and seeds current repo trust only when that exact project entry is absent. Claude `permissions.deny` is the one exception: it is deep-merged additively into `.claude/settings.json` and does not warn.
 
 ### Sections at a glance
 
 | Section | Purpose |
 | --- | --- |
 | `[approvals]` | auto-approval policy for commands and MCP tools |
+| `[dispatch]` | Agent Dispatch nesting depth limit (`max_depth`) |
 | `[agents.*]` | enablement and model selection per client |
 | `[[mcp.servers]]` | external MCP server definitions |
 | `[warnings]` | optional thresholds for token and server limits, plus sync update warnings |
@@ -124,16 +147,16 @@ Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.clau
 
 ### Agents
 
-Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`) for Opus models; Codex supports `reasoning_effort` with its own set of options. Omit `reasoning_effort` (and `model`) to use the client defaults. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
+Each agent has an `enabled` flag and optional `model` value. Claude supports `reasoning_effort` (`low`, `medium`, `high`, `xhigh`, `max`); Agent Layer passes the value through to Claude Code regardless of the selected model (including when `model` is unset), and Claude Code applies it where the active model supports it. `max` is session-only and is passed via the `--effort` CLI flag (it is not written to settings.json). Custom values outside the catalog pass through with a sync-time warning so new effort levels work before agent-layer is updated. Codex supports `reasoning_effort` with its own set of options. Copilot CLI supports `model` but not `reasoning_effort`. Omit `reasoning_effort` (and `model`) to use the client defaults. Codex supports `local_config_dir` (boolean, default `false`); when `true`, `al codex`, Codex dispatch, and `al vscode` set `CODEX_HOME=<repo>/.codex` for per-repo auth, sessions, logs, and runtime state. When absent or false, Agent Layer preserves any inherited `CODEX_HOME`. Claude also supports `local_config_dir` (boolean, default `false`); when `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Note: auth credentials are stored globally by Claude Code in the OS credential store (macOS Keychain service `"Claude Code-credentials"`; Linux libsecret/gnome-keyring) regardless of this setting (upstream limitation). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled; otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
 
 Supported agents:
 
-- `gemini`
+- `antigravity`
 - `claude`
 - `claude_vscode`
 - `codex`
 - `vscode`
-- `antigravity`
+- `copilot_cli`
 
 ### MCP servers
 
@@ -145,10 +168,12 @@ Each `[[mcp.servers]]` entry must include:
 
 Optional fields:
 
-- `clients` to restrict which clients receive a server (valid values: `gemini`, `claude`, `vscode`, `codex`, `antigravity`; note that `claude_vscode` uses the `claude` client)
+- `clients` to restrict which clients receive a server (valid values: `antigravity`, `claude`, `vscode`, `codex`, `copilot`; note that `claude_vscode` uses the `claude` client)
 - `http_transport` (`sse` or `streamable`) for HTTP servers
 - `headers` for HTTP auth and metadata
 - `command`, `args`, `env` for stdio servers
+
+When a local command already has a useful help surface, compare MCP against a CLI skill before adding a server. The [CLI Skill Design Guide](/cli-skill-design) explains when MCP is the right interface and when live `--help` is the better source of truth.
 
 #### Secrets, placeholders, and client projection
 
@@ -165,15 +190,16 @@ Here is how placeholder projection works for MCP servers:
 | Client | Placeholder syntax in generated config |
 | --- | --- |
 | Claude Code (`.mcp.json`) | `${AL_TOKEN}` |
-| Gemini (`.gemini/settings.json`) | `${AL_TOKEN}` |
+| Antigravity (`.agy/antigravity-cli/mcp_config.json`) | `${AL_TOKEN}` |
 | VS Code (`.vscode/mcp.json`) | `${env:AL_TOKEN}` |
-| Codex (`.codex/config.toml`) | headers become env-var references; URLs/commands/args/env values are resolved because Codex does not support placeholders |
+| Codex (`.codex/config.toml`) | headers become env-var references; URLs/commands/args/env values are resolved because Codex does not support placeholders; the file is shared Codex state patched by `al sync` |
+| Copilot CLI (`.copilot/mcp-config.json`) | `${AL_TOKEN}` (env vars resolved at runtime by the client) |
 
 Practical guidance:
 
 - Prefer secrets in headers (`headers = { Authorization = "Bearer ${AL_TOKEN}" }`) over secrets in URLs.
 - For maximum portability, keep non-Authorization secret headers as exact placeholders (for example `"X-Api-Key" = "${AL_API_KEY}"`), not mixed into longer strings.
-- Some services use API keys in URLs (for example the seeded Tavily template). In that case, remember clients like Codex may require a fully resolved URL and will write it only into gitignored outputs.
+- Some services use API keys in URLs (for example the seeded Tavily template). In that case, remember clients like Codex may require a fully resolved URL and will write it into gitignored shared state.
 
 #### HTTP example
 
@@ -214,12 +240,16 @@ Set `noise_mode` to control warning verbosity:
 
 - `default`: keep all warnings (recommended)
 - `reduce`: hide only suppressible non-critical warnings
+- `quiet`: suppress agent-layer informational output (warnings still print in `al doctor`)
+
+`al doctor` also prints a context size summary (instruction tokens, skill catalog-metadata tokens against a ~4,000-token budget, MCP totals against their thresholds, and an estimated total of the always-loaded token costs). It is informational, not a warning, so it always prints — even under `noise_mode = "quiet"` or `al --quiet doctor`. Thresholds left unset show `(no limit set)`.
 
 ### Validation rules
 
 Agent Layer validates `config.toml` on every run. Common validation rules:
 
 - `approvals.mode` must be one of `all`, `mcp`, `commands`, `none`, `yolo`
+- `dispatch.max_depth` must be a positive integer when set
 - `enabled` flags must be set for all agents and MCP servers
 - MCP transport must be `http` or `stdio`
 - `http_transport` (when set) must be `sse` or `streamable`
@@ -310,7 +340,10 @@ The command surface is intentionally small. Most of the time you only need one r
 | `al upgrade repair-gitignore-block` | Restore `.agent-layer/gitignore.block` from templates and reapply the root `.gitignore` managed block. |
 | `al wizard` | Interactive configuration plus profile mode (`--profile`) and backup cleanup (`--cleanup-backups`). |
 | `al sync` | Regenerate client configs without launching a client. |
-| `al <client>` | Sync and launch a client (gemini/claude/codex/vscode/antigravity). |
+| `al <client>` | Sync and launch a client (agy/claude/codex/copilot/vscode). |
+| `al dispatch` | Run a supported headless target (`codex`, `claude`, `antigravity`, or `random`) from an Agent Layer-launched caller. |
+| `al dispatch options --json` | Print the stable Agent Dispatch target/options contract for scripts. |
+| `al probe agy` | Run the Antigravity capability probe and print JSON. |
 | `al doctor` | Validate configuration and probe enabled MCP servers. |
 | `al completion` | Print or install shell completions (bash/zsh/fish). |
 | `al --version` | Print the installed Agent Layer version. |
@@ -327,13 +360,13 @@ It is scaffolding: it creates the files that make behavior explicit and repeatab
 **What it does**
 
 - Creates `.agent-layer/` (configuration, instructions, approvals, MCP servers)
-- Creates `docs/agent-layer/` (project memory files)
 - Installs a managed `.gitignore` block
+- Prompts to run `al wizard` in interactive shells, where the workflow bundle can create `docs/agent-layer/` memory files
 
 **Steps (high level)**
 
 1. Creates required directories.
-2. Writes template-managed files under `.agent-layer/` and `docs/agent-layer/` (seeds user-owned files only when missing).
+2. Writes operational template-managed files under `.agent-layer/` (seeds user-owned files only when missing).
 3. Adds or updates the managed `.gitignore` block.
 4. If running interactively, prompts to run the wizard unless `--no-wizard` is set.
 
@@ -341,7 +374,7 @@ It is scaffolding: it creates the files that make behavior explicit and repeatab
 
 Typical `.agent-layer/` files include:
 
-- `config.toml` (seeded if missing; user-owned), `commands.allow`, `instructions/`, `slash-commands/`
+- `config.toml` (seeded if missing; user-owned), `commands.allow`, `instructions/`, `skills/`
 - `al.version` (repo pin; required)
 - `.env` (seeded if missing; user-owned secrets, always gitignored)
 - `.gitignore` (internal ignores) and `gitignore.block` (root `.gitignore` template)
@@ -351,9 +384,9 @@ Typical `.agent-layer/` files include:
 
 `.agent-layer/gitignore.block` is the template file. It must contain only ignore patterns and comments (no managed markers and no template hash). Agent Layer copies it verbatim and injects the managed header and template hash only when updating the root `.gitignore`. If the template file contains managed markers or a hash line, `al sync` will error; run `al upgrade` to restore the template file.
 
-Typical project memory files under `docs/agent-layer/`:
+The optional workflow bundle creates missing project memory files under `docs/agent-layer/`:
 
-- `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`
+- `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`
 
 **Wizard prompt**
 
@@ -378,16 +411,51 @@ In non-interactive environments, the wizard is skipped.
 
 - Updates `.agent-layer/al.version` to match the currently running `al` binary
 - Prompts before overwriting managed template files unless apply flags are explicitly selected
-- Shows line-level diff previews before overwrite decisions by default
-- In the default interactive flow, prompts about unknown files under `.agent-layer` and only deletes them if you explicitly approve
-- In non-interactive or explicit-category apply (e.g., `--yes --apply-managed-updates`), requires the separate `--apply-deletions` flag before unknown files are eligible for deletion
+- Shows a compact per-file summary (path with `+N -M` line stats) before overwrite decisions, and asks "View the full diff?" (default no) before printing unified diff bodies; per-file overwrite prompts always render the full diff
+- Runs `al sync` automatically after a successful upgrade so retired projection paths and freshly-introduced templates are reconciled (sync warnings surface on stderr; sync failures are wrapped and suppress the success banner)
+- In the default interactive flow, prompts about unknown files under `.agent-layer/` and `docs/agent-layer/` and only deletes them if you explicitly approve
+- In non-interactive or explicit-category apply (e.g., `--yes --apply-managed-updates`), requires the separate `--apply-deletions` flag before unknown files outside `.agent-layer/tmp/` are eligible for deletion
+- **Treats `.agent-layer/tmp/` as protected ephemeral storage:** files under that directory are never deleted by `--apply-deletions`, never bulk-deleted by the interactive "delete all unknowns?" prompt, and never restored by rollback. Tmp deletion requires either an interactive double-confirm or the dedicated `--apply-tmp-deletions` flag (in addition to `--yes`). See [Ephemeral artifacts under .agent-layer/tmp/](#ephemeral-artifacts-under-agent-layertmp)
 - Never overwrites `.agent-layer/config.toml` or `.agent-layer/.env`
 - Creates an automatic snapshot for managed upgrade targets and auto-rolls back if an upgrade step fails
 - Stores snapshots under `.agent-layer/state/upgrade-snapshots/`
+- **Snapshots exclude `.agent-layer/tmp/`** — ephemeral run artifacts there can total hundreds of MB and would balloon snapshot size with no rollback benefit
 - Supports snapshot discovery and manual restore via `al upgrade rollback --list` and `al upgrade rollback <snapshot-id>`
 
 Use `--diff-lines N` to raise the per-file diff preview cap (default: 40 lines).
 For a concise team/CI runbook, see [Upgrade checklist](./upgrade-checklist).
+
+### Upgrade apply flags
+
+| Flag | Effect |
+| --- | --- |
+| `--yes` | Run non-interactively. Requires at least one apply flag below. |
+| `--apply-managed-updates` | Apply managed template updates without prompts. |
+| `--apply-memory-updates` | Apply updates to memory files under `docs/agent-layer/`. |
+| `--apply-deletions` | Apply deletions of unknown files **outside** `.agent-layer/tmp/`. Has no effect on tmp content. |
+| `--apply-tmp-deletions` | Apply destructive deletion of files **under** `.agent-layer/tmp/`. Required (in addition to `--yes`) for any non-interactive tmp deletion. |
+
+`--apply-deletions` and `--apply-tmp-deletions` are independent. Pass both to delete every unknown file non-interactively; pass either alone to scope deletions to one bucket.
+
+### Ephemeral artifacts under .agent-layer/tmp/
+
+`.agent-layer/tmp/` is the canonical scratch directory for agent run artifacts (plans, reports, scratch dumps, intermediate logs). Contents are ephemeral by design — agents are instructed to delete artifacts when no longer needed, and Agent Layer tooling treats the directory as low-value, high-volume state.
+
+Because tmp can balloon to hundreds of MB across many runs, Agent Layer applies stricter rules than for other unknown files:
+
+**Snapshots do not capture tmp.** When `al upgrade` creates a pre-upgrade snapshot under `.agent-layer/state/upgrade-snapshots/`, files under `.agent-layer/tmp/` are excluded. Snapshots stay small and a corrupted tmp file cannot make a snapshot unreadable.
+
+**Rollback does not restore tmp.** `al upgrade rollback <snapshot-id>` will not recreate any tmp file the user deleted during the upgrade. If you need to preserve a specific in-progress agent artifact, copy it out of `.agent-layer/tmp/` before running `al upgrade`.
+
+**Interactive deletion requires a destructive double-confirm.** When the upgrade prompt asks `Delete all N file(s) under .agent-layer/tmp/?`, the default is **no**. Answering `y` triggers a second confirmation: `DESTRUCTIVE: deleting .agent-layer/tmp/ permanently removes ephemeral agent run artifacts and may impact ongoing work. Are you absolutely sure?` — also defaulting to `no`. Both prompts must be answered yes to delete tmp content. The "delete all unknowns?" prompt at the top of the unknowns flow does NOT cover tmp; the grouped tmp prompt always fires regardless of how the user answered the top-level prompt.
+
+**Non-interactive deletion requires a separate flag.** `al upgrade --yes --apply-deletions` will delete other unknowns but **leaves tmp untouched** and prints `Info: skipping deletions under .agent-layer/tmp/ (pass --apply-tmp-deletions to include them; this is destructive and may impact ongoing agent work)`. To wipe tmp non-interactively, pass `--apply-tmp-deletions` explicitly:
+
+```bash
+al upgrade --yes --apply-deletions --apply-tmp-deletions
+```
+
+Use this only when you are sure no agent run artifacts you care about live under `.agent-layer/tmp/`.
 
 ### Upgrade rollback
 
@@ -397,6 +465,7 @@ For a concise team/CI runbook, see [Upgrade checklist](./upgrade-checklist).
 - Snapshot IDs are the `.json` filename stems in `.agent-layer/state/upgrade-snapshots/`
 - Only snapshots in `applied` status are rollback-eligible
 - Rollback fails loudly when a snapshot is missing, malformed, or non-rollbackable
+- Rollback does **not** restore `.agent-layer/tmp/`. Snapshots intentionally exclude tmp content; if you need to keep in-progress agent artifacts, copy them out of `.agent-layer/tmp/` before upgrading.
 
 ### Upgrade prefetch
 
@@ -477,26 +546,45 @@ Think of sync as a build step. You can run it any time you want to refresh gener
 **What it does**
 
 - Validates `.agent-layer/config.toml`
-- Reads `.agent-layer/instructions/`, `.agent-layer/slash-commands/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
+- Reads `.agent-layer/instructions/`, `.agent-layer/skills/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
 - Regenerates client outputs and launchers
 
 **Steps (high level)**
 
 1. Load and validate `config.toml`, then resolve secrets from `.agent-layer/.env`.
-2. Parse instructions and slash commands to build client-specific outputs.
+2. Parse instructions and skills to build client-specific outputs.
 3. Write generated configs and launchers for enabled clients.
 4. Emit warnings if any thresholds in `[warnings]` are exceeded.
 
-**Slash command format**
+**Skill format**
 
-Each file in `.agent-layer/slash-commands/` must be a Markdown file with YAML frontmatter:
+Skill sources align with the [agentskills.io specification](https://agentskills.io/specification), with explicit backward-compatibility behavior documented below. For authoring guidance, use the [Skill Design Guide](/skill-design); for installed command-line tools, use the [CLI Skill Design Guide](/cli-skill-design).
 
-- `description` (required): short description of the command
+`.agent-layer/skills/` uses directory format:
+
+- `.agent-layer/skills/<name>/SKILL.md` (canonical; lowercase `skill.md` is accepted as a compatibility fallback)
+
+Frontmatter fields:
+
+- Required: `name`, `description`
+- Optional: `license`, `compatibility`, `metadata`, `allowed-tools`
+
+Validation notes (`al doctor`):
+
+- Name checks are NFKC-normalized and normalization-aware when matching `name` to the canonical source name.
+- Name limits: max 64 Unicode characters, lowercase letters/digits/hyphens only, no leading/trailing/consecutive hyphens.
+- Description limit: max 1024 Unicode characters.
+- Compatibility limit (when present): max 500 Unicode characters.
+- Size recommendation: `al doctor` warns when a skill source exceeds 500 lines.
+- Missing `name` remains load-compatible (name is derived from path), but `al doctor` warns.
+- Missing or empty `description` fails load/sync (fail-loud).
+- Directory skills using lowercase `skill.md` load for compatibility, but `al doctor` warns to use canonical `SKILL.md`.
 
 Example:
 
 ```md
 ---
+name: code-audit
 description: Run a code quality audit.
 ---
 # Your command body here
@@ -506,12 +594,13 @@ description: Run a code quality audit.
 
 Common outputs include:
 
-- `.agent/skills/`
-- `.gemini/settings.json`, `.claude/settings.json`, `.mcp.json`
-- `.codex/` (generated config, rules, and skills)
-- `.vscode/mcp.json`, `.vscode/prompts/`, and a managed block in `.vscode/settings.json`
+- `.agents/skills/`
+- `.agy/antigravity-cli/settings.json`, `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.codex/` (generated config and rules)
+- `.copilot/mcp-config.json`
+- `.vscode/mcp.json` and a managed block in `.vscode/settings.json`
 - `.github/copilot-instructions.md`
-- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+- `AGENTS.md`, `CLAUDE.md`
 - repo-local VS Code launchers under `.agent-layer/` when VS Code is enabled (for example `open-vscode.command`, `open-vscode.sh`, and `open-vscode.app/`)
 
 These files are derived outputs and safe to delete. Running `al sync` will recreate them.
@@ -524,11 +613,11 @@ These files are derived outputs and safe to delete. Running `al sync` will recre
 
 `al <client>` syncs before launch by default. Supported clients:
 
-- `al gemini`
+- `al agy`
 - `al claude`
 - `al codex`
+- `al copilot`
 - `al vscode`
-- `al antigravity`
 
 These commands read `.agent-layer/`, regenerate client outputs, and then launch the selected client.
 
@@ -547,6 +636,29 @@ Examples:
 al claude -- --help
 al vscode --no-sync -- --reuse-window
 ```
+
+### Dispatch
+
+`al dispatch` lets an Agent Layer-launched caller run one supported headless target for a focused text task:
+
+```bash
+al dispatch --agent codex "Review this plan."
+al dispatch --agent random --skill review-plan "Review this plan."
+cat prompt.md | al dispatch --agent claude
+```
+
+Supported target values are `codex`, `claude`, `antigravity`, and `random`. When `--agent` is omitted, Agent Layer uses the env-only caller marker (`AL_DISPATCH_CALLER_AGENT`) and the caller's optional `agents.<caller>.dispatch.default_agent`, defaulting to `random`. Dispatch writes target answer text to stdout and status/errors to stderr, limits nested calls with `dispatch.max_depth` (default `1`), and uses the selected target's generated config and permissions. See `docs/AGENT-DISPATCH.md` in the repository for the full v1 contract.
+
+**Exit codes**
+
+- `0` — dispatch completed successfully
+- `64` — usage or resolution failure (missing prompt and skill, unknown target, unknown caller with omitted `--agent`, unsupported override field for the selected target)
+- `65` — configuration or state failure (missing source skill, stale/missing target skill projection, malformed config, disabled target)
+- `69` — target unavailable (missing target binary, unauthenticated/unusable target CLI, no eligible target in the random-selection pool)
+- `70` — target or adapter failure (target subprocess non-zero exit, target rejection of a custom override value, changed structured stream shape, unreadable target output, internal dispatch error)
+- `75` — nested dispatch blocked by `dispatch.max_depth` or invalid `AL_DISPATCH_ACTIVE`
+- `130` — interrupted by `SIGINT`
+- `143` — terminated by `SIGTERM`
 
 ### Doctor
 

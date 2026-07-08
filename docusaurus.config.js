@@ -1,9 +1,53 @@
 // @ts-check
+import fs from "node:fs";
 import { themes as prismThemes } from "prism-react-renderer";
 
 const isProd = process.env.NODE_ENV === "production";
 const BASE_URL = "/";
 const GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || "G-BF2NZXRW05";
+const REDIRECT_MANIFEST_URL = new URL("./redirect-manifest.json", import.meta.url);
+
+function readRedirectManifest() {
+  if (!fs.existsSync(REDIRECT_MANIFEST_URL)) {
+    console.warn(
+      `[redirects] redirect-manifest.json not found at ${REDIRECT_MANIFEST_URL}; skipping retired doc redirects.`,
+    );
+    return [];
+  }
+
+  const manifest = JSON.parse(fs.readFileSync(REDIRECT_MANIFEST_URL, "utf8"));
+  if (!Array.isArray(manifest)) {
+    throw new Error("redirect-manifest.json must contain an array");
+  }
+
+  const seenFrom = new Set();
+  for (const entry of manifest) {
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      typeof entry.from !== "string" ||
+      typeof entry.to !== "string"
+    ) {
+      throw new Error("redirect-manifest.json entries must include string from/to fields");
+    }
+    if (!entry.from.startsWith("/") || !entry.to.startsWith("/")) {
+      throw new Error(
+        `redirect-manifest.json entries must start with "/": from="${entry.from}", to="${entry.to}"`,
+      );
+    }
+    if (entry.from === entry.to) {
+      throw new Error(`redirect-manifest.json contains a self-redirect: "${entry.from}"`);
+    }
+    if (seenFrom.has(entry.from)) {
+      throw new Error(`redirect-manifest.json has duplicate "from" entry: "${entry.from}"`);
+    }
+    seenFrom.add(entry.from);
+  }
+
+  return manifest;
+}
+
+const retiredDocRedirects = readRedirectManifest();
 
 /** @type {import("@docusaurus/types").HtmlTagObject[]} */
 const faviconHeadTags = [
@@ -117,6 +161,12 @@ const config = {
   ],
 
   plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: retiredDocRedirects,
+      },
+    ],
     [
       "docusaurus-plugin-copy-page-button",
       {

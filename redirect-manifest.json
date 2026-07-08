@@ -1,0 +1,410 @@
+[
+  {
+    "from": "/docs/0.10.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.10.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.10.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.10.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.10.0/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.10.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.10.0/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.10.0/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.6.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.6.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.6.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.6.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.6.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.6.1/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.6.1/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.6.1/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.6.1/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.6.1/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.7.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.7.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.7.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.7.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.7.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.7.0/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.0/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.0/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.1/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.1/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.1/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.1/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.1/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.1/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.1/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.2/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.2/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.2/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.2/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.2/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.2/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.2/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.3/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.3/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.3/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.3/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.3/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.3/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.3/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.4/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.4/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.4/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.4/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.4/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.4/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.4/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.5/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.5/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.5/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.5/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.5/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.5/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.5/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.6/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.6/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.6/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.6/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.6/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.6/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.6/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.7/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.7/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.7/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.7/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.7/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.7/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.7/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.8.8/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.8.8/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.8.8/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.8.8/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.8.8/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.8.8/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.8.8/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.9.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.9.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.9.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.9.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.9.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.9.0/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.9.0/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.9.1/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.9.1/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.9.1/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.9.1/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.9.1/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.9.1/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.9.1/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.9.1/upgrades",
+    "to": "/docs/upgrades"
+  }
+]

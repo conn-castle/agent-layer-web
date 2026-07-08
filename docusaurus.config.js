@@ -26,6 +26,14 @@ function readRedirectManifest() {
     ) {
       throw new Error("redirect-manifest.json entries must include string from/to fields");
     }
+    if (!entry.from.startsWith("/") || !entry.to.startsWith("/")) {
+      throw new Error(
+        `redirect-manifest.json entries must start with "/": from="${entry.from}", to="${entry.to}"`,
+      );
+    }
+    if (entry.from === entry.to) {
+      throw new Error(`redirect-manifest.json contains a self-redirect: "${entry.from}"`);
+    }
   }
 
   return manifest;

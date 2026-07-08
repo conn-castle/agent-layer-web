@@ -9,6 +9,9 @@ const REDIRECT_MANIFEST_URL = new URL("./redirect-manifest.json", import.meta.ur
 
 function readRedirectManifest() {
   if (!fs.existsSync(REDIRECT_MANIFEST_URL)) {
+    console.warn(
+      `[redirects] redirect-manifest.json not found at ${REDIRECT_MANIFEST_URL}; skipping retired doc redirects.`,
+    );
     return [];
   }
 
@@ -17,6 +20,7 @@ function readRedirectManifest() {
     throw new Error("redirect-manifest.json must contain an array");
   }
 
+  const seenFrom = new Set();
   for (const entry of manifest) {
     if (
       !entry ||
@@ -34,6 +38,10 @@ function readRedirectManifest() {
     if (entry.from === entry.to) {
       throw new Error(`redirect-manifest.json contains a self-redirect: "${entry.from}"`);
     }
+    if (seenFrom.has(entry.from)) {
+      throw new Error(`redirect-manifest.json has duplicate "from" entry: "${entry.from}"`);
+    }
+    seenFrom.add(entry.from);
   }
 
   return manifest;

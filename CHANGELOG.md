@@ -1,6 +1,99 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.13.0 - 2026-07-17
+
+Breaking Agent Dispatch redesign and workflow-skill refresh. Dispatch now
+starts fresh, final-answer-only provider turns by default, and exposes explicit
+continuation, inspection, history, cancellation, and fanout operations rather
+than streaming provider traffic.
+
+### Added
+- `al dispatch resume <name>`, `fanout`, `inspect`, `history`, `cancel`,
+  `list`, and `delete`. Named conversations have atomic mappings and immutable
+  run-UUID records; fanout runs one shared prompt across independently retained
+  targets.
+- Separate fresh, resume, and inspection capability facts in `al dispatch
+  options --json`, including installed provider versions and compatibility
+  warnings. Claude Code 2.1.207, Codex CLI 0.144.1, and Antigravity 1.1.1 are
+  the tested baselines; newer versions remain available with a warning, while
+  older, unreadable, and malformed versions fail before launch.
+- Private bounded run evidence, 30-day retention for eligible evidence and
+  mappings, process-group supervision, final-answer replay, a safe pre-start
+  retry, and Antigravity’s isolated documented log-file ID extractor with
+  fail-loud `not resumable` handling.
+- `al hook chime`, a project-shareable completion handler for Claude, Codex,
+  and Antigravity. It filters non-terminal lifecycle events, fails open, uses
+  the macOS system sound or Linux `canberra-gtk-play` when available, and never
+  claims that a provider stop event proves task completion.
+
+### Changed
+- **Breaking:** `al dispatch` no longer streams answer text, progress, raw
+  events, or provider diagnostics. Standard output contains only a successful
+  final answer; standard error begins with one compact identity line.
+- **Breaking:** the v1 `dispatch_capable` and streaming options fields were
+  removed from the public JSON contract. Use separate capability facts instead.
+- The default `dispatch.max_depth` is now `3`, allowing two nested dispatches
+  after the initial call. Built-in workflows remain root-to-leaf and use
+  external dispatch only for bounded leaf judgment.
+- Antigravity's generated settings file is now shared state: Agent Layer
+  patches only its managed model, permissions, and passthrough paths while
+  preserving native workspace, approval, and trust settings.
+- Codex VS Code launches now configure only extension-relevant runtime
+  features; ordinary Codex CLI settings and status-line configuration are not
+  projected into the VS Code path.
+- Model suggestions were refreshed for Claude, Codex, Copilot CLI, and
+  Antigravity in the wizard and dispatch option catalog.
+- Version-binary handoff moved from `internal/dispatch` to
+  `internal/versiondispatch` to distinguish it from Agent Dispatch.
+- `auto-skill-loop` now provides `fix-issue-log`, `implement-backlog`,
+  `improve-interfaces`, and `improve-codebase` modes plus repository-added mode
+  files. It selects adaptive fresh work, preserves local blockers,
+  batches and ships centrally, keeps `/ship-pr` isolated in its shipper
+  dispatch, independently gates exact-head merge authorization, and reconciles
+  each result without preplanning the full source.
+- Instruction-only assets now live under their owning skills' `references/`
+  directories; output and machine-readable resources remain under `assets/`.
+- Bundled workflow skills are now more explicitly root-to-leaf: orchestration
+  owns transitions and delivery, while Agent Dispatch is restricted to named,
+  bounded leaf roles. The refresh adds `clean-and-fix-code`,
+  `debug-and-fix-issue`, `fully-implement-plan`, `review-uncommitted-code`,
+  `run-and-fix-all-checks`, and `verify-work` as the current workflow surface.
+
+### Removed
+- Retired the standalone `fix-issues` skill after preserving its explicit
+  filters, batching, dispositions, and one-delivery behavior in the
+  `fix-issue-log` mode.
+- Retired superseded workflow skill names and wrappers, including
+  `audit-and-fix-uncommitted-changes`, `debug-issue`, `review-scope`,
+  `verify-against-plan`, `prune-new-tests`, `simplify-new-code`,
+  `complete-current-phase`, `finish-task`, `repair-checks`, and
+  `multi-agent-plan-review`. The migration manifest renames managed skill
+  directories where a direct replacement exists; retirement remains
+  ownership-aware and reviewable during upgrade.
+
+### Fixed
+- Dispatch now waits for provider completion evidence and terminates failed
+  process groups, preventing terminal failure while owned descendants continue.
+- Projection preparation is serialized before provider launch, avoiding
+  concurrent generated-skill writes while allowing independent targets to run
+  concurrently afterward.
+- Dispatch now preserves the caller's working directory across linked
+  worktrees, records resolved targets for reliable resume, validates provider
+  diagnostics, and closes cancellation and recovery races without releasing a
+  live process claim prematurely.
+- `al sync`, launchers, and the root command preserve cancellation signals and
+  logical repository roots more reliably. Upgrade rollback retries now reset
+  scoped targets before restoring a failed snapshot, allowing a partial
+  rollback to converge safely.
+
+### Internal
+- Added the v0.13.0 migration and template ownership manifests. The migration
+  supports upgrades from the 0.10.2 line and renames managed workflow skill
+  directories and their instruction resources.
+- Updated the Go toolchain to 1.26.5, modernized terminal UI dependencies, and
+  added release-binary vulnerability scanning.
+
 ## v0.12.3 - 2026-07-10
 
 Patch release for the v0.12 line. Adds current Codex model and reasoning-effort suggestions, and fixes `al sync` so generated skill resources stay reconciled safely with their source trees.

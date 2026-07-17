@@ -9,7 +9,7 @@ This page is the authoritative reference for configuration, environment variable
 If you are setting up Agent Layer for the first time, start with [Getting started](./getting-started).
 For upgrade policy commitments (event model, guarantees, migration rules, and platform matrix), use [Upgrades](./upgrades).
 
-Agent Layer is explicit by design. It prefers failing fast over guessing, and it treats generated files as disposable outputs rather than hand-maintained sources. When you need to know exactly what will change on disk, this is the contract.
+Agent Layer is explicit by design. It prefers failing fast over guessing, treats generated files as disposable outputs, and patches only owned paths in shared client settings. When you need to know exactly what will change on disk, this is the contract.
 
 ## In this page
 
@@ -38,8 +38,12 @@ mode = "all"
 
 [dispatch]
 # Maximum dispatch depth, including the initial `al dispatch` call.
-# 1 means a dispatched target cannot call `al dispatch` again.
-max_depth = 1
+# 3 allows two nested `al dispatch` calls.
+max_depth = 3
+
+[notifications]
+# Best-effort system chime for filtered top-level completion events.
+chime = false
 
 [agents.antigravity]
 enabled = true
@@ -76,7 +80,7 @@ enabled = true
 [agents.codex]
 enabled = true
 # model is optional; when omitted, Agent Layer does not pass a model setting and the client uses its default.
-# model = "gpt-5.3-codex"
+# model = "gpt-5.6-sol"
 # reasoning_effort is optional; when omitted, the client uses its default.
 # reasoning_effort = "xhigh" # codex only
 # local_config_dir sets CODEX_HOME=<repo>/.codex for per-repo auth, sessions, logs, and runtime state.
@@ -137,6 +141,7 @@ Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.clau
 | --- | --- |
 | `[approvals]` | auto-approval policy for commands and MCP tools |
 | `[dispatch]` | Agent Dispatch nesting depth limit (`max_depth`) |
+| `[notifications]` | filtered, best-effort local completion chime (`chime`) |
 | `[agents.*]` | enablement and model selection per client |
 | `[[mcp.servers]]` | external MCP server definitions |
 | `[warnings]` | optional thresholds for token and server limits, plus sync update warnings |
@@ -144,6 +149,14 @@ Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.clau
 ### Approvals
 
 `[approvals]` controls auto-approval behavior.
+
+### Notifications
+
+`notifications.chime = true` projects one project-shareable Agent Layer `Stop` handler into each enabled Claude, Codex, and Antigravity client. It does not write global provider settings and does not require Codex `notify` or `agents.codex.local_config_dir`.
+
+The handler chimes for a main Claude turn only when no continuation, background task, or scheduled wakeup remains; for Codex only on the initial stop where `stop_hook_active` is false; and for Antigravity only when the client is fully idle after a normal, error-free model stop. Invalid event metadata stays silent. Hook or sound failures fail open so notifications cannot block or continue an agent.
+
+Codex matching hooks run concurrently. Its first `Stop` can therefore chime before another hook requests continuation; later continuation stops are suppressed, but this project-shareable hook cannot guarantee exact semantic task completion. On macOS the handler uses `/usr/bin/afplay` with the system Blow sound. On Linux it uses `canberra-gtk-play --id=complete` when that command is available on `PATH`; Agent Layer bundles no sound asset, and a missing command fails open with a diagnostic. Other operating systems are unsupported.
 
 ### Agents
 
@@ -342,6 +355,10 @@ The command surface is intentionally small. Most of the time you only need one r
 | `al sync` | Regenerate client configs without launching a client. |
 | `al <client>` | Sync and launch a client (agy/claude/codex/copilot/vscode). |
 | `al dispatch` | Run a supported headless target (`codex`, `claude`, `antigravity`, or `random`) from an Agent Layer-launched caller. |
+| `al dispatch fanout` | Send one shared prompt and optional skill to two or more self-contained target specifications, wait for all children, and emit one manifest. |
+| `al dispatch inspect <name-or-id>` | Report read-only factual state and diagnostics for one run or conversation. |
+| `al dispatch history <name>` | Show retained immutable turns for one friendly conversation name. |
+| `al dispatch cancel <id>` | Cancel an exact active run, conversation, or fanout process group. |
 | `al dispatch options --json` | Print the stable Agent Dispatch target/options contract for scripts. |
 | `al probe agy` | Run the Antigravity capability probe and print JSON. |
 | `al doctor` | Validate configuration and probe enabled MCP servers. |
@@ -595,7 +612,8 @@ description: Run a code quality audit.
 Common outputs include:
 
 - `.agents/skills/`
-- `.agy/antigravity-cli/settings.json`, `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.agy/antigravity-cli/settings.json` (shared state patched at Agent Layer-managed model, `permissions.allow`, and `agent_specific` paths)
 - `.codex/` (generated config and rules)
 - `.copilot/mcp-config.json`
 - `.vscode/mcp.json` and a managed block in `.vscode/settings.json`
@@ -603,7 +621,7 @@ Common outputs include:
 - `AGENTS.md`, `CLAUDE.md`
 - repo-local VS Code launchers under `.agent-layer/` when VS Code is enabled (for example `open-vscode.command`, `open-vscode.sh`, and `open-vscode.app/`)
 
-These files are derived outputs and safe to delete. Running `al sync` will recreate them.
+Generated outputs are safe to delete, and `al sync` will recreate them — except the shared-state files it patches in place, `.codex/config.toml` and `.agy/antigravity-cli/settings.json`. Keep both gitignored but do not treat them as disposable: native values (for Antigravity, workspace approval or trust) are preserved there. Managed MCP output remains safe to regenerate.
 
 **Warnings**
 
@@ -639,23 +657,49 @@ al vscode --no-sync -- --reuse-window
 
 ### Dispatch
 
-`al dispatch` lets an Agent Layer-launched caller run one supported headless target for a focused text task:
+`al dispatch` starts one fresh, final-answer-only headless provider turn:
 
 ```bash
 al dispatch --agent codex "Review this plan."
-al dispatch --agent random --skill review-plan "Review this plan."
+al dispatch --agent random --skill review-uncommitted-code "Review the current working tree."
 cat prompt.md | al dispatch --agent claude
+al dispatch resume tiny-round-capacitor "Review the revision."
+cat prompt.md | al dispatch fanout \
+  --target 'agent=codex' --target 'agent=claude'
+al dispatch inspect tiny-round-capacitor --json
+al dispatch history tiny-round-capacitor --json
+al dispatch cancel <name-or-run-or-fanout-id>
+al dispatch list
+al dispatch delete tiny-round-capacitor
 ```
 
-Supported target values are `codex`, `claude`, `antigravity`, and `random`. When `--agent` is omitted, Agent Layer uses the env-only caller marker (`AL_DISPATCH_CALLER_AGENT`) and the caller's optional `agents.<caller>.dispatch.default_agent`, defaulting to `random`. Dispatch writes target answer text to stdout and status/errors to stderr, limits nested calls with `dispatch.max_depth` (default `1`), and uses the selected target's generated config and permissions. See `docs/AGENT-DISPATCH.md` in the repository for the full v1 contract.
+Supported target values are `codex`, `claude`, `antigravity`, and `random`.
+When `--agent` is omitted, Agent Layer uses the env-only caller marker
+(`AL_DISPATCH_CALLER_AGENT`) and the caller's optional
+`agents.<caller>.dispatch.default_agent`, defaulting to `random`.
+
+Each ordinary call creates a new provider conversation. Only `resume <name>`
+continues a conversation, using an exact durable mapping; prompt, role, target,
+and artifact paths never infer reuse. Dispatch writes one identity line to
+standard error and replays only a semantically completed final answer to
+standard output. `fanout` is a synchronous shared-prompt operation that stores
+independent child results and emits one aggregate manifest after every child is
+terminal. `inspect` reports read-only transport facts, `history` derives turns
+from immutable records, `cancel` targets an exact owned process group, and `delete`
+removes only the Agent Layer mapping. Use `al dispatch options --json` for
+installed version and separate fresh/resume/inspect capability facts. The
+tested compatibility set is Claude Code 2.1.207, Codex CLI 0.144.1, and
+Antigravity 1.1.1; newer installed versions dispatch with a compatibility
+warning, while older or unreadable versions fail before launch. See
+`docs/AGENT-DISPATCH.md` in the repository for the full v0.13 contract.
 
 **Exit codes**
 
 - `0` — dispatch completed successfully
-- `64` — usage or resolution failure (missing prompt and skill, unknown target, unknown caller with omitted `--agent`, unsupported override field for the selected target)
+- `64` — usage or resolution failure (missing prompt and skill, unknown target, unknown caller with omitted `--agent`, unknown dispatch/session name for resume, inspect, or delete, unsupported override field for the selected target)
 - `65` — configuration or state failure (missing source skill, stale/missing target skill projection, malformed config, disabled target)
-- `69` — target unavailable (missing target binary, unauthenticated/unusable target CLI, no eligible target in the random-selection pool)
-- `70` — target or adapter failure (target subprocess non-zero exit, target rejection of a custom override value, changed structured stream shape, unreadable target output, internal dispatch error)
+- `69` — target unavailable (missing target binary, unsupported provider version, no eligible target in the random-selection pool, attempt to delete an active session)
+- `70` — target or adapter failure (provider failure, missing required terminal result, capture limit/I/O failure, or process-supervision failure)
 - `75` — nested dispatch blocked by `dispatch.max_depth` or invalid `AL_DISPATCH_ACTIVE`
 - `130` — interrupted by `SIGINT`
 - `143` — terminated by `SIGTERM`

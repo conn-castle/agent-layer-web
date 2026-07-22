@@ -37,7 +37,7 @@ The canonical inputs live in `.agent-layer/`:
 
 - `config.toml` for structured configuration
 - `instructions/` for agent rules and guidance
-- `skills/` for repeatable workflows
+- `skills/` for repeatable workflows (see [Skill Design](/skill-design))
 - `commands.allow` for approved shell command prefixes
 - `.env` for secrets
 
@@ -52,16 +52,16 @@ Some teams keep `.agent-layer/` local while experimenting; others commit it so e
 When you run `al sync` or `al <client>`, Agent Layer generates client-specific config files and launchers, such as:
 
 - `.agents/skills/`
-- `.gemini/settings.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.agy/antigravity-cli/settings.json` (shared state patched only at Agent Layer-managed paths)
 - `.codex/` (generated config and rules)
 - `.vscode/mcp.json` and a managed block in `.vscode/settings.json`
 - `AGENTS.md`
 - `CLAUDE.md`
-- `GEMINI.md`
 - `.github/copilot-instructions.md`
 - repo-local VS Code launchers under `.agent-layer/` when VS Code is enabled (for example `open-vscode.command`, `open-vscode.sh`, and `open-vscode.app/`)
 
-The generated files are always safe to delete and regenerate.
+Generated outputs are safe to delete and regenerate, except for the shared-state files `al sync` patches in place rather than regenerating: `.codex/config.toml` and `.agy/antigravity-cli/settings.json`. The Antigravity file can also hold native workspace approval, trust, and other settings. Keep it gitignored, but preserve it during cleanup; Agent Layer patches only its managed model, `permissions.allow`, and `agent_specific` paths, and never deletes native values it did not set.
 
 This separation is deliberate. It gives you the confidence to wipe outputs and rebuild when something feels off, without losing the source of truth that you actually maintain.
 
@@ -69,11 +69,11 @@ This separation is deliberate. It gives you the confidence to wipe outputs and r
 
 In a manual setup, every client becomes a separate source of truth. You change a rule in one place and forget to update another. That is how approvals diverge, MCP servers go missing, and agents behave inconsistently.
 
-Agent Layer avoids that by forcing everything through a single canonical input. The outputs are always derived and always disposable.
+Agent Layer avoids that by forcing managed values through a single canonical input. Generated outputs are derived and disposable; shared client settings preserve native values outside Agent Layer's managed paths.
 
 ### Anti-patterns to avoid
 
-- Editing generated files under `.agents/skills/`, `.gemini/`, `.claude/`, `.codex/`, `.copilot/`, or `.mcp.json`
+- Editing Agent Layer-managed values under `.agents/skills/`, `.agy/`, `.antigravitycli/`, `.claude/`, `.codex/`, `.copilot/`, or `.mcp.json`
 - Editing Agent Layer-managed files under `.vscode/` (`mcp.json` and the managed block in `settings.json`)
 - Copying instructions manually between clients
 - Maintaining separate MCP configs for each agent
@@ -90,17 +90,25 @@ Use them sparingly:
 - Colliding keys intentionally override Agent Layer-managed values.
 - Sync emits a warning whenever agent-specific keys overlap managed keys, with one carve-out: Claude `permissions.deny` is additive and does not warn.
 - Claude agent-specific values are deep-merged into `.claude/settings.json` for object values; arrays and scalar values are replaced at their key.
-- Codex agent-specific values are written at the TOML root before managed project trust and MCP tables so top-level overrides stay explicit.
+- Codex agent-specific values are patched into `.codex/config.toml`, which is shared Codex state. `al sync` refreshes known Agent Layer-managed entries while preserving unrelated Codex/user runtime entries.
 
 If you find yourself carrying many permanent overrides, that is usually a sign the setting should become a first-class key in `.agent-layer/config.toml`.
 
 ## Per-repo isolation {#per-repo-credential-isolation}
 
-Agent Layer gives each repository its own agent configuration so work in one repo never leaks into another. Codex credential isolation is fully supported. Claude settings and caches isolation is supported, but Claude auth credential isolation is blocked by an upstream limitation (see below).
+Agent Layer gives each repository its own agent configuration so work in one repo never leaks into another. Codex home isolation is opt-in. Claude settings and caches isolation is supported, but Claude auth credential isolation is blocked by an upstream limitation (see below).
 
 ### How it works
 
-**Codex** isolation is automatic. `al codex` and repos that enable `[agents.vscode]` use a repo-local `CODEX_HOME`. The generated `.codex/config.toml` also includes a trust stanza for the current absolute repo root, so Codex authentication and trust are per-repo with no extra configuration.
+**Codex** home isolation is opt-in. Agent Layer always patches `.codex/config.toml` with known managed Codex entries from `.agent-layer/config.toml`, including MCP config and a current repo trust seed when that exact project entry is absent. `al codex`, `al dispatch start --agent codex`, and `al vscode` set `CODEX_HOME=<repo>/.codex` only when `local_config_dir = true` is set under `[agents.codex]` (for `al vscode`, `[agents.vscode]` must also be enabled):
+
+```toml
+[agents.codex]
+enabled = true
+local_config_dir = true
+```
+
+When `agents.codex.local_config_dir` is absent or false, Agent Layer does not set or clear `CODEX_HOME`; Codex uses its normal global/project config layering and any inherited `CODEX_HOME` remains user-owned.
 
 **Claude** isolation is opt-in. Set `local_config_dir = true` under `[agents.claude]` in `.agent-layer/config.toml`:
 
@@ -118,17 +126,17 @@ Claude Code currently stores auth credentials in the OS credential store (macOS 
 
 ### Trade-offs
 
-Enabling per-repo isolation means settings and caches are scoped to the repository. Auth remains shared globally due to the upstream limitation above.
+Enabling Codex home isolation means auth, sessions, logs, and other Codex runtime state are scoped to the repository. Enabling Claude isolation means settings and caches are scoped to the repository; auth remains shared globally due to the upstream limitation above.
 
-Claude isolation is opt-in (default `false`) because always-on isolation would duplicate config state in every existing repo. Teams that want settings and caches isolation can enable it per-repo; teams that prefer shared global config keep the default.
+Codex and Claude isolation are opt-in (default `false`) because always-on isolation duplicates config and runtime state in every existing repo. Teams that want per-repo state can enable it per repo; teams that prefer shared global config keep the default.
 
 ### When to enable it
 
-- You want per-repo settings and caches isolation
-- You want different Claude non-auth defaults or cache state per repository
-- You want repo-specific Claude settings and caches profiles without affecting other repositories
+- You want per-repo Codex auth, sessions, logs, or runtime state
+- You want per-repo Claude settings and caches isolation
+- You want different provider defaults or cache state per repository
 
-If none of these apply, the default (shared global `~/.claude/`) works fine and keeps one shared settings and caches profile across repositories.
+If none of these apply, the default shared provider config works fine and keeps one shared profile across repositories.
 
 ## Approvals and safety
 
@@ -155,7 +163,7 @@ mode = "all" # one of: all, mcp, commands, none, yolo
 | `mcp` | prompt/deny | auto-approve | |
 | `commands` | auto-approve | prompt/deny | |
 | `none` | prompt/deny | prompt/deny | |
-| `yolo` | auto-approve | auto-approve | skips all permission prompts (Claude `--dangerously-skip-permissions`, Gemini `--approval-mode=yolo`, Codex `approval_policy=never` + `sandbox_mode=danger-full-access` + `web_search=live`, Copilot CLI `--yolo`, VS Code `chat.tools.global.autoApprove`) |
+| `yolo` | auto-approve | auto-approve | skips all permission prompts where supported (Claude `--dangerously-skip-permissions`, Codex `approval_policy=never` + `sandbox_mode=danger-full-access` + `web_search=live`, Copilot CLI `--yolo`) |
 
 The default template sets `mode = "all"`. Change it to match your team's security posture.
 
@@ -211,24 +219,22 @@ Two high-leverage examples:
 - **Context7**: gives agents access to current library documentation and code examples, which reduces “reasonable sounding” but incorrect API usage. It shines when you are integrating SDKs or frameworks that change quickly.
 - **Tavily**: provides web search/research so agents can answer “what is the latest” or “what changed recently” questions with real sources instead of guessing from training data.
 
-### Why the template includes a default MCP library
+### Why the wizard includes a default MCP library
 
-`al init` seeds `.agent-layer/config.toml` with a small set of MCP servers (all `enabled = false` by default). They are included because they cover the most common high-value agent workflows across repos: up-to-date docs, web research, fast code search, controlled filesystem access, and source fetching/browser automation.
+`al init` creates an empty `[mcp]` section. `al wizard` includes a small catalog of MCP servers that you can add when needed. They are included because they cover the most common high-value agent workflows across repos: up-to-date docs, web research, source fetching, and browser automation.
 
 You do not need all of them. Most repos get the best results by enabling a small, intentional set and expanding only when a real use case shows up.
 
 They are disabled by default because some require sign-ups and secrets, and because tool access is a real capability decision. Enable the minimum set that gives you leverage.
 
-**Seeded servers (disabled by default)**
+**Catalog servers**
 
 - `context7` - current library docs and examples; requires `AL_CONTEXT7_API_KEY` (sign up) and `npx`.
 - `tavily` - web search/research for recency; requires `AL_TAVILY_API_KEY` (sign up).
-- `ripgrep` - fast repo search; requires `npx`. Included because “find the right file/identifier” is one of the most common agent tasks.
-- `filesystem` - controlled file access (restricted to the current repo root in the template); requires `npx`. Included because it lets clients that rely on MCP tooling inspect the repo safely.
 - `fetch` - fetch a URL and return its contents; requires `uvx` (from `uv`). Useful alongside search when you want the agent to read the primary source.
 - `playwright` - browser automation (logins, complex pages, UI flows); requires `npx` and downloads browser dependencies. High leverage for web-focused repos, unnecessary overhead for many others.
 
-GitHub can still be configured as an optional custom HTTP MCP server when your workflow needs PR/issue/actions tooling.
+GitHub can still be configured as an optional custom HTTP MCP server when your workflow needs PR/issue/actions tooling. If you are deciding between an MCP wrapper and an installed command-line tool, use [CLI Skill Design](/cli-skill-design) to choose the smaller, lower-drift interface.
 
 ### Where servers are defined
 
@@ -286,7 +292,7 @@ See [Environment variables](./reference#environment-variables) for how `.env` is
 
 ### Client targeting
 
-Use `clients = ["gemini", "claude", "codex", "vscode", "antigravity", "copilot"]` to restrict a server to specific clients. If you omit `clients`, the server is projected to all supported clients.
+Use `clients = ["antigravity", "claude", "codex", "vscode", "copilot"]` to restrict a server to specific clients. If you omit `clients`, the server is projected to all supported clients.
 
 ### Built-in path placeholder
 
@@ -299,7 +305,7 @@ For the full checklist, see [Doctor](./reference#doctor).
 
 ### Skill sync
 
-Skills are synced natively to Agent Skills directories with full subdirectory support (`scripts/`, `references/`, `assets/`). Shared-skill clients use `.agents/skills/`; Claude uses `.claude/skills/`. No MCP server is involved.
+Skills are synced natively to Agent Skills directories with full subdirectory support (`scripts/`, `references/`, `assets/`). Shared-skill clients use `.agents/skills/`; Claude uses `.claude/skills/`. No MCP server is involved. For authoring guidance, use [Skill Design](/skill-design) and [CLI Skill Design](/cli-skill-design).
 
 ### Common pitfalls
 
@@ -314,7 +320,7 @@ Start with one or two servers, verify with `al doctor`, then expand. It is easie
 
 ## Project memory
 
-Agent Layer seeds `docs/agent-layer/` as a place for repo-specific memory files. These files are meant to be long-lived, human-readable context that agents can reference. Treat them as the team's shared recall, not as transient notes, so future changes have context instead of guesswork.
+The optional workflow bundle creates `docs/agent-layer/` as a place for repo-specific memory files. These files are meant to be long-lived, human-readable context that agents can reference. Treat them as the team's shared recall, not as transient notes, so future changes have context instead of guesswork.
 
 This is less about documentation and more about continuity. Agents work best when you can answer “what are we building,” “what are the constraints,” and “what did we decide last time.” Memory files make that context durable.
 
@@ -322,7 +328,7 @@ They are also for humans. When a new teammate joins or you return to a repo afte
 
 ### Default memory files
 
-`al init` creates:
+When installed by `al wizard`, the workflow bundle creates missing files:
 
 - `docs/agent-layer/ISSUES.md`
 - `docs/agent-layer/BACKLOG.md`

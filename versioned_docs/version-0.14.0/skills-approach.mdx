@@ -1,0 +1,287 @@
+---
+title: Skills approach
+description: Agent Layer's skill ethos and bundled root skill model.
+sidebar_position: 5
+---
+
+This page defines Agent Layer's root-skill and workflow architecture.
+
+Document ownership prevents guidance drift:
+
+- [Skill Design](/skill-design) owns portable skill design guidance.
+- [CLI Skill Design](/cli-skill-design) owns CLI-skill design.
+- [Instruction Design](/instruction-design) owns the boundary between
+  always-loaded instructions and skills.
+- This page owns Agent Layer's skill architecture.
+- `docs/SKILL-AUDIT.md` owns the repository audit procedure.
+
+## Design ethos
+
+The following principles govern every root skill and workflow skill:
+
+- One purposeful pass per stage. Planning, review, implementation,
+  verification, cleanup, and shipping each happen once by default. Repetition
+  requires a concrete failure, not a desire for greater confidence.
+
+- Sufficiency over exhaustiveness. Each stage should produce enough confidence
+  to proceed safely. The goal is a sound result, not the elimination of every
+  conceivable uncertainty.
+
+- Progress through complementary perspectives. Quality comes from different
+  stages examining different artifacts—not from repeatedly asking agents to
+  reconsider the same artifact.
+
+- Review concrete work whenever possible. Prefer reviewing implemented
+  behavior, diffs, test results, and observable evidence over repeatedly
+  refining hypothetical implementation details.
+
+- Evidence outranks consensus. Repository behavior, tests, specifications, and
+  documented contracts settle questions. Additional agent agreement does not
+  make established evidence stronger.
+
+- Reasoning should be proportional to risk. Deep reasoning is reserved for
+  genuinely difficult, consequential, or ambiguous decisions. Routine
+  coordination and review should favor decisive, efficient judgment.
+
+- Only user-owned decisions interrupt momentum. Escalate choices that
+  materially affect behavior, architecture, scope, risk, or cost. Agents should
+  resolve routine implementation and verification details themselves.
+
+- Findings must justify their cost. A finding should change correctness,
+  safety, scope, or meaningful maintainability. Stylistic refinements and
+  speculative edge cases should not block the next stage.
+
+- Every stage has a terminal responsibility. An orchestrated role must deliver
+  its artifact, verdict, or blocker and then yield. It should not create another
+  layer of orchestration to strengthen its own conclusion.
+
+- Forward motion is the default. Once a stage’s contract is satisfied, the
+  workflow advances. “More review might find something” is not sufficient
+  reason to remain in place.
+
+**Deterministic modules, not improvisation.** A skill should make the same
+contract available every time: accepted inputs, required artifacts, stop
+conditions, verification expectations, and final handoff shape. The agent still
+uses judgment inside the task, but the module boundary and terminal
+responsibility should be stable.
+
+**Root skills own bounded jobs; workflow skills compose them.** Planning,
+review, implementation, verification, cleanup, and shipping remain distinct
+stages with distinct artifacts. A root skill may use tools or a purposefully
+assigned subagent to produce its output, but it must not call another skill or
+create a nested orchestration layer. Workflow skills own cross-skill sequencing
+and advance after each stage satisfies its contract. They may re-enter a stage
+only in response to a concrete failure or materially changed artifact.
+
+**Evidence over assertion or consensus.** Skills should push agents toward
+observable evidence: read the code, inspect the diff, run documented checks,
+use real artifacts, and state what was verified. Additional review does not
+override repository behavior, specifications, tests, or documented contracts.
+
+**Verification is intentionally placed.** Implementation skills may use narrow
+task-local checks when they need feedback, but final verification is its own
+boundary. `verify-work` owns the final verification pass for completed work:
+it runs the smallest credible checks or accepts current evidence only when that
+evidence clearly covers the final working tree. Workflow skills should call
+that boundary once at the appropriate point instead of rerunning broad checks
+after every step. A failed check or a subsequent material change is a concrete
+reason to repair and re-verify the affected work.
+
+**Use built-in subagents only for a distinct perspective or bounded job.** The
+child must be able to follow its prompt without knowing whether a user or parent
+workflow launched it. The parent supplies inputs, handles the child result, and
+chooses the next phase. Do not add agents merely to repeat a judgment or build
+consensus around evidence that already settles the question.
+
+**Parents own boundaries; children own procedures.** A parent workflow states a
+child skill's required inputs, accepted result, and response to failure or
+required user input. The child owns its internal procedure. Do not repeat child
+logic, evidence, or rationale in the parent. Once the child returns its
+artifact, verdict, or blocker, its role is complete.
+
+**Ask the user only for a user-owned decision or approval.** Name the exact
+behavior, architecture, scope, risk, cost, destructive operation, external
+write, or missing requirement that prevents progress. State where execution
+resumes after the answer. Agents resolve routine implementation and verification
+details and continue automatically when no user-owned decision is required.
+
+## Nested skill call notation
+
+Use this notation when describing how workflow skills call other skills,
+dispatch named agents, or launch built-in subagents.
+
+Parentheses show only agent-role inputs passed into the call, such as
+`implementer`, `code_reviewer`, `fixer`, or `plan_reviewers`. Do not include
+ordinary file paths, artifacts, issue numbers, or prose task inputs unless they
+are essential to the explanation.
+
+```text
+/skill-name
+```
+
+Use a bare skill name when the current agent calls the skill directly and no
+agent-role input is relevant.
+
+```text
+/plan-work(plan_reviewers)
+```
+
+Add parentheses to any call form that passes agent-role inputs into the
+skill. A skill name with no prefix, as shown here, means the current agent
+calls the skill directly.
+
+```text
+dispatch(implementer) -> /fully-implement-plan(implementer, code_reviewer, fixer)
+```
+
+Use `dispatch(agent_name) ->` when a named dispatch role launches the skill.
+The name can be a workflow role such as `implementer` or one item from a
+caller-provided list.
+
+```text
+subagent -> /verify-work
+```
+
+Use `subagent ->` when the current skill launches a built-in fresh-context
+subagent. This is not a named dispatch role.
+
+```text
+for plan_reviewer in plan_reviewers:
+    dispatch(plan_reviewer) -> .agent-review-prompt
+```
+
+Use a leading dot for bundled resources instead of skills. The example means
+each named plan reviewer follows the `agent-review-prompt` reference directly.
+Their findings are synthesized within the same review stage; agreement among
+reviewers is not an independent form of evidence. Leave the parentheses off
+when the resource has no agent-role inputs.
+
+```text
+subagent -> task: row-level verification
+```
+
+Use `task:` when a workflow names work that is not a skill call and is not
+backed by a named prompt or asset file. Add `caller: subagent` when that task
+runs in a built-in fresh-context subagent. Do not use a leading dot for these
+rows; dot-prefixes are reserved for real assets.
+
+Keep `task:` rows coarse. At any one `calls:` level, use at most one direct
+`task:` row to summarize local orchestration work. If several adjacent bullets
+would only describe mechanical local steps, fold them into one readable phrase
+instead of rendering each step. Prefer `task: commit, push, and prepare the PR`
+over separate rows for branch prep, PR create/reuse, ledger setup, and reply
+publishing. Use additional rows only when they are real logic blocks, skill
+calls, asset calls, dispatch/subagent boundaries, or terminal `break:`/`exit:`
+statements.
+
+Do not render readiness checks that are only internal gates of the previous
+child call. When the source workflow means "if repair is needed, capture
+evidence, plan, implement, and verify", keep those calls inside one meaningful
+condition instead of adding separate `if the plan is ready` or
+`if implementation changed files` rows. A reusable plan/implement/verify node is
+useful only when it corresponds to a real skill with a stable contract;
+otherwise inline the three skill calls. Any path that re-enters a completed
+stage must name the concrete failure or changed artifact that requires it.
+
+Conditional calls can be shown with a short condition:
+
+```text
+if accepted findings:
+    subagent -> /plan-work(plan_reviewers)
+```
+
+In the YAML call-tree spec, logic is represented as a block node. Put `if`,
+`while`, and `for` at the list-item level, and put the body under nested
+`calls:`. Do not attach an `if` or `while` field to a sibling call.
+
+```yaml
+ship-pr:
+  inputs: [plan_reviewers, implementer, fixer]
+  calls:
+    - while: PR is not ready for closeout
+      calls:
+        - task: run monitor-pr.sh and reconcile its action
+        - if: PR is created or a new head SHA is pushed
+          calls:
+            - skill: run-and-fix-all-checks
+              inputs: [plan_reviewers, implementer]
+              caller: subagent
+        - if: local changes exist after repair work
+          calls:
+            - task: commit and push local repair changes
+            - break: restart monitoring for the new pushed head
+        - if: PR is ready for merge authorization
+          calls:
+            - exit: stop and request authorization to merge the exact PR
+```
+
+Use `break:` for a loop exit or restart point, and `exit:` for leaving the
+current skill at a stop gate or final handoff.
+
+Lifecycle monitoring may observe changing external state more than once within
+one shipping stage. That does not authorize repeated review for confidence. In
+the example, a failed check or new head SHA is new evidence that justifies the
+affected repair or verification work; an unchanged state does not.
+
+Keep the tree focused on delegation shape: who launches the work, whether it is
+a skill, asset, task, or terminal control statement, and which agent-role inputs
+flow into it. Omit redundant review layers and confidence-seeking loops.
+
+## Root Skill Model
+
+Representative stable contracts:
+
+| Root skill | Stable contract |
+| --- | --- |
+| `review-plan` | Make one risk-proportional pass over plan artifacts and report only gaps that materially affect implementation, verification, scope, or safety. |
+| `implement-plan` | Execute an approved plan once, use task-local feedback checks when needed, and return the completed work, a concrete failure, or a user-owned decision. |
+| `review-uncommitted-code` | Review concrete files, diffs, behavior, and test evidence once and produce findings that materially affect correctness, safety, scope, or maintainability. |
+| `verify-work` | Make one final, evidence-based comparison of completed work against the plan or request and return a completion verdict or concrete failure. |
+
+## Workflow skills
+
+Workflow boundaries include:
+
+- `ship-pr` owns one pull request shipping stage, including audit, commit, push,
+  continuous integration monitoring, reviewer feedback, and final status
+  checks. External state changes may require targeted repair without restarting
+  unrelated stages.
+- `full-workflow` owns specification alignment for features or roadmap phases,
+  planning, implementation, concrete-work review, verification, closeout, and
+  pull request shipping. Each stage yields its result before the workflow
+  advances.
+- `improve-codebase` covers one declared scope, repairs validated findings, and
+  reviews and verifies the combined result.
+- `auto-skill-loop` adaptively selects the next coherent work from a named mode,
+  delegates each bounded step, centrally batches and ships ready deliveries,
+  reconciles authoritative sources, and moves past local blockers until
+  substantive autonomous work is exhausted or the user stops it.
+
+## Contract expectations
+
+A root skill should define:
+
+- Inputs it accepts, including file paths, artifacts, issue identifiers, or
+  plain-language scope.
+- Its distinct stage responsibility and the artifact, verdict, or blocker that
+  terminates the stage.
+- Output artifact or report shape, so another skill or workflow can consume it.
+- Any required system source of truth, with a reason the root skill cannot do
+  its own job without it.
+- Stop conditions for missing required input or incompatible state.
+- Verification expectations appropriate to its job. Implementation skills may
+  run narrow feedback checks, verification skills own completion evidence, and
+  workflows should not duplicate broad checks without a concrete failure,
+  materially changed artifact, or explicit release or continuous integration
+  boundary.
+- Final handoff fields that are stable enough for follow-up automation.
+
+A root skill should avoid:
+
+- Hidden mode switches that change the main output contract.
+- Open-ended instructions to iterate until confidence, consensus, perfection,
+  or diminishing returns.
+- Findings based only on style preference or speculative edge cases that do not
+  materially affect correctness, safety, scope, or maintainability.
+- Delegating the same judgment to another orchestrated role after its own
+  contract is satisfied.

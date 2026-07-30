@@ -211,7 +211,7 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      image: "img/branding/logo.svg",
+      image: "img/branding/social-card.png",
       metadata: [
         {
           name: "keywords",
@@ -220,7 +220,7 @@ const config = {
             "agent layer, mcp server setup, claude code, openai codex, vibe coding, repo-local instructions, coding agent config, slash commands for coding agents",
         },
         { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary" },
+        { name: "twitter:card", content: "summary_large_image" },
       ],
       navbar: {
         title: "",

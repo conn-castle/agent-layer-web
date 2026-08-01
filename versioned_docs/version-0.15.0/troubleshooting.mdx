@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting
 description: Fix common install, configuration, and MCP server issues.
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 Use this page when installs fail, configs do not validate, or MCP servers do not connect. Most issues are configuration or PATH-related, so start with a quick triage before diving deeper. The goal is to get you back to a predictable state without guessing.
@@ -67,11 +67,11 @@ Fix:
 
 ### "agent layer isn't initialized"
 
-Run [`al init`](./reference#init) in the repo to create `.agent-layer/`. To add `docs/agent-layer/` memory files, run [`al wizard`](./reference#wizard) and select the workflow bundle.
+Run [`al init`](./reference#init) in the repo to create `.agent-layer/`. To add `docs/agent-layer/` memory files when the workflow bundle is absent, run [`al wizard`](./reference#wizard) and install the workflow bundle.
 
 ### Generated files showing up in git
 
-Generated client outputs are meant to be disposable. If you see generated files like `.agents/skills/`, `.agy/`, `.antigravitycli/`, `.claude/settings.json`, `.claude/skills/`, `.codex/`, `.copilot/`, `.vscode/mcp.json`, `.vscode/settings.json`, `.mcp.json`, `.github/copilot-instructions.md`, `AGENTS.md`, or `CLAUDE.md` showing up in `git status`, it usually means one of:
+Generated client outputs should stay gitignored. If you see files like `.agents/skills/`, `.agy/`, `.antigravitycli/`, `.claude/settings.json`, `.claude/skills/`, `.codex/`, `.copilot/`, `.vscode/mcp.json`, `.vscode/settings.json`, `.mcp.json`, `.github/copilot-instructions.md`, `AGENTS.md`, or `CLAUDE.md` showing up in `git status`, it usually means one of:
 
 - the repo has not been initialized with Agent Layer's managed `.gitignore` block,
 - the ignore rules were customized,
@@ -80,7 +80,7 @@ Generated client outputs are meant to be disposable. If you see generated files 
 Run `al sync` (or `al <client>`) to reinstall the managed ignore rules. If the files were already committed, you will also need to stop tracking them in git (and ensure `.agent-layer/.env` stays untracked, since it contains secrets).
 
 :::caution
-`.codex/config.toml` may contain resolved values for MCP server URLs, commands, or environment variables. Treat it as private and keep it gitignored.
+`.codex/config.toml` and `.agy/antigravity-cli/settings.json` are shared state patched by `al sync`, not disposable generated files. Antigravity settings can contain native workspace approval or trust state; Agent Layer patches only its managed model, `permissions.allow`, and `agent_specific` paths. Treat both files as private and keep them gitignored. Antigravity MCP output remains safe to regenerate.
 :::
 
 ### "gitignore block must not include managed markers or template hash"
@@ -149,13 +149,15 @@ This creates a stable non-managed tail position for extension writes.
 
 ### Global MCP server fallback for VS Code (Codex)
 
-This is primarily a VS Code fallback.
+This is primarily a VS Code fallback for repos that opt into repo-local Codex home with `agents.codex.local_config_dir = true`.
 
-Continue using `al codex` on the CLI. `al codex` sets a repo-local `CODEX_HOME`, so Codex uses the repo-local `.codex/config.toml` (which Agent Layer generates from `.agent-layer/config.toml`, including the current repo trust stanza and MCP servers).
+When `agents.codex.local_config_dir` is absent or false, Agent Layer does not set `CODEX_HOME` for `al codex`, Codex dispatch, or `al vscode`. Codex uses its normal global/project config layering, and any inherited `CODEX_HOME` remains user-owned.
 
-If you launch VS Code without Agent Layer's repo-local launcher, the Codex VS Code extension will not receive the repo-local `CODEX_HOME`. In that case, the extension continues to use repo-local instructions and skills, but it uses MCP servers from your global Codex config instead.
+When `agents.codex.local_config_dir = true`, `al codex`, Codex dispatch, and `al vscode` set `CODEX_HOME=<repo>/.codex`. `.codex/config.toml` is shared Codex state patched by `al sync`; known Agent Layer-managed entries are refreshed from `.agent-layer/config.toml`, including MCP servers and a current repo trust seed when that exact project entry is absent.
 
-Tradeoffs (VS Code without launcher):
+If you launch VS Code without Agent Layer's repo-local launcher while `agents.codex.local_config_dir = true`, the Codex VS Code extension will not receive the repo-local `CODEX_HOME`. In that case, the extension continues to use repo-local instructions and skills, but it uses MCP servers from your global Codex config instead.
+
+Tradeoffs (global Codex home):
 
 - You are no longer using `.agent-layer/config.toml` as the single source of truth for Codex MCP servers.
 - Codex auth/state is shared across repos (which can be convenient, but is less isolated).
@@ -177,10 +179,10 @@ Workflow (best-effort; depends on your Codex client version):
    ```
 
    Note: for servers that require API keys, prefer environment variables and avoid hardcoding secrets into your global config. If you intentionally prefer floating dependencies, switch to `@latest`/unpinned args explicitly.
-2. Launch VS Code without Agent Layer's `CODEX_HOME` launcher so the extension uses the global config.
+2. Leave `agents.codex.local_config_dir` absent/false, or launch VS Code without Agent Layer's repo-local launcher when that setting is true, so the extension uses the global config.
 3. Keep using Agent Layer for repo-local prompts and skills.
 
-If you want the fully managed setup in VS Code, use `al vscode` (or the generated `open-vscode` launcher) so VS Code starts with the repo-local `CODEX_HOME` and uses MCP servers projected from `.agent-layer/config.toml`.
+If you want the fully managed repo-local Codex setup in VS Code, set `agents.codex.local_config_dir = true` and use `al vscode` (or the generated `open-vscode` launcher) so VS Code starts with the repo-local `CODEX_HOME` and uses MCP servers projected from `.agent-layer/config.toml`.
 
 ### Global config fallback for VS Code (Claude)
 

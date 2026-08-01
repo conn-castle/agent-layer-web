@@ -64,6 +64,38 @@
     "to": "/docs/upgrades"
   },
   {
+    "from": "/docs/0.11.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.11.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.11.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.11.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.11.0/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.11.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.11.0/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.11.0/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
     "from": "/docs/0.12.0/",
     "to": "/docs/"
   },

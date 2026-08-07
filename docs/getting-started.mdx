@@ -160,7 +160,7 @@ Typical layout:
   tmp/                 # agent-only artifacts
 ```
 
-Skill sources follow the [agentskills.io specification](https://agentskills.io/specification). All skills use directory format (`.agent-layer/skills/<name>/SKILL.md`). Canonical `SKILL.md` is preferred; lowercase `skill.md` is accepted as a compatibility fallback but triggers an `al doctor` warning.
+Skill sources follow the [agentskills.io specification](https://agentskills.io/specification). User-managed skills use `.agent-layer/skills/<name>/SKILL.md`; imported skills use `.agent-layer/skills-imported/<name>/SKILL.md`. Both tiers require the uppercase canonical filename; lowercase `skill.md` is rejected.
 
 ### Project memory (`docs/agent-layer/`)
 
@@ -170,7 +170,6 @@ These files are created when you install the workflow bundle in `al wizard`. The
 docs/agent-layer/
   ISSUES.md
   BACKLOG.md
-  ROADMAP.md
   DECISIONS.md
   COMMANDS.md
   CONTEXT.md

@@ -196,6 +196,42 @@
     "to": "/docs/upgrades"
   },
   {
+    "from": "/docs/0.12.3/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.12.3/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.12.3/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.12.3/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.12.3/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.12.3/skills-approach",
+    "to": "/docs/skills-approach"
+  },
+  {
+    "from": "/docs/0.12.3/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.12.3/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.12.3/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
     "from": "/docs/0.6.0/",
     "to": "/docs/"
   },

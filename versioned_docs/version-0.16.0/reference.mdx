@@ -9,13 +9,14 @@ This page is the authoritative reference for configuration, environment variable
 If you are setting up Agent Layer for the first time, start with [Getting started](./getting-started).
 For upgrade policy commitments (event model, guarantees, migration rules, and platform matrix), use [Upgrades](./upgrades).
 
-Agent Layer is explicit by design. It prefers failing fast over guessing, and it treats generated files as disposable outputs rather than hand-maintained sources. When you need to know exactly what will change on disk, this is the contract.
+Agent Layer is explicit by design. It prefers failing fast over guessing, treats generated files as disposable outputs, and patches only owned paths in shared client settings. When you need to know exactly what will change on disk, this is the contract.
 
 ## In this page
 
 - [Configuration](#configuration)
 - [Environment variables](#environment-variables)
 - [CLI guide](#cli-guide)
+- [Skill import commands](#skill-import-commands)
 
 ## Configuration
 
@@ -37,15 +38,23 @@ Never put secrets in `config.toml`. Secrets belong in `.agent-layer/.env`.
 mode = "all"
 
 [dispatch]
-# Maximum dispatch depth, including the initial `al dispatch` call.
-# 1 means a dispatched target cannot call `al dispatch` again.
-max_depth = 1
+# Maximum dispatch depth, including the initial `al dispatch start` call.
+# 3 allows two nested `al dispatch start` calls.
+max_depth = 3
+# How long one `dispatch_wait` MCP tool call blocks before reporting that the
+# conversation is still running. Optional; defaults to 30.
+mcp_wait_timeout_minutes = 30
+# Hard bound on every Agent Dispatch MCP tool call, also projected as Codex's
+# per-server `tool_timeout_sec`. Optional; defaults to 40. Must be greater than
+# mcp_wait_timeout_minutes.
+mcp_tool_timeout_minutes = 40
+
+[notifications]
+# Best-effort system chime for filtered top-level completion events.
+chime = false
 
 [agents.antigravity]
 enabled = true
-# Optional default when Antigravity calls `al dispatch` without --agent.
-# [agents.antigravity.dispatch]
-# default_agent = "random" # random | codex | claude | antigravity
 
 [agents.claude]
 enabled = true
@@ -65,9 +74,6 @@ enabled = true
 # Object values are deep-merged into .claude/settings.json; arrays and scalar values are replaced at their key.
 # Overlapping managed keys, such as permissions.allow, override Agent Layer-managed
 # values and trigger a sync warning. permissions.deny is additive and does not warn.
-# Optional default when Claude calls `al dispatch` without --agent.
-# [agents.claude.dispatch]
-# default_agent = "random" # random | codex | claude | antigravity
 # [agents.claude.agent_specific]
 
 [agents.claude_vscode]
@@ -76,7 +82,7 @@ enabled = true
 [agents.codex]
 enabled = true
 # model is optional; when omitted, Agent Layer does not pass a model setting and the client uses its default.
-# model = "gpt-5.3-codex"
+# model = "gpt-5.6-sol"
 # reasoning_effort is optional; when omitted, the client uses its default.
 # reasoning_effort = "xhigh" # codex only
 # local_config_dir sets CODEX_HOME=<repo>/.codex for per-repo auth, sessions, logs, and runtime state.
@@ -86,9 +92,6 @@ enabled = true
 # These are patched into .codex/config.toml and can override top-level managed keys.
 # Agent Layer seeds [projects."<repo root>"] trust_level = "trusted" only when
 # that exact project entry is absent.
-# Optional default when Codex calls `al dispatch` without --agent.
-# [agents.codex.dispatch]
-# default_agent = "random" # random | codex | claude | antigravity
 # [agents.codex.agent_specific]
 # [agents.codex.agent_specific.features]
 # apps = false              # disable built-in Codex apps (GitHub, Gmail, etc.) to reduce tool surface
@@ -136,14 +139,24 @@ Agent-specific passthrough keys in `agents.codex.agent_specific` or `agents.clau
 | Section | Purpose |
 | --- | --- |
 | `[approvals]` | auto-approval policy for commands and MCP tools |
-| `[dispatch]` | Agent Dispatch nesting depth limit (`max_depth`) |
+| `[dispatch]` | Agent Dispatch nesting depth limit (`max_depth`) and MCP timeouts (`mcp_wait_timeout_minutes`, `mcp_tool_timeout_minutes`) |
+| `[notifications]` | filtered, best-effort local completion chime (`chime`) |
 | `[agents.*]` | enablement and model selection per client |
+| `[[skills.imports]]` | Git-backed Agent Skill imports |
 | `[[mcp.servers]]` | external MCP server definitions |
 | `[warnings]` | optional thresholds for token and server limits, plus sync update warnings |
 
 ### Approvals
 
 `[approvals]` controls auto-approval behavior.
+
+### Notifications
+
+`notifications.chime = true` projects one project-shareable Agent Layer `Stop` handler into each enabled Claude, Codex, and Antigravity client. It does not write global provider settings and does not require Codex `notify` or `agents.codex.local_config_dir`.
+
+The handler chimes for a main Claude turn only when no continuation, background task, or scheduled wakeup remains; for Codex only on the initial stop where `stop_hook_active` is false; and for Antigravity only when the client is fully idle after a normal, error-free model stop. Invalid event metadata stays silent. Hook or sound failures fail open so notifications cannot block or continue an agent.
+
+Codex matching hooks run concurrently. Its first `Stop` can therefore chime before another hook requests continuation; later continuation stops are suppressed, but this project-shareable hook cannot guarantee exact semantic task completion. On macOS the handler uses `/usr/bin/afplay` with the system Blow sound. On Linux it uses `canberra-gtk-play --id=complete` when that command is available on `PATH`; Agent Layer bundles no sound asset, and a missing command fails open with a diagnostic. Other operating systems are unsupported.
 
 ### Agents
 
@@ -159,6 +172,13 @@ Supported agents:
 - `copilot_cli`
 
 ### MCP servers
+
+Agent Layer always projects one built-in MCP server, `agent-layer`, into every
+enabled Codex, Claude, Antigravity, VS Code, and Copilot CLI client. It serves
+the Agent Dispatch tools (see [Agent Dispatch](https://github.com/conn-castle/agent-layer/blob/main/docs/AGENT-DISPATCH.md)),
+is derived from your configuration rather than declared in it, and appears in
+generated permission allowlists alongside your own servers. Its `agent-layer`
+ID is reserved and cannot be used by a `[[mcp.servers]]` entry.
 
 Each `[[mcp.servers]]` entry must include:
 
@@ -223,6 +243,53 @@ command = "npx"
 args = ["-y", "mcp-ripgrep@0.4.0"]
 ```
 
+### Skill imports
+
+`[[skills.imports]]` declares Git-backed Agent Skill imports. Each block holds
+one source repository plus the selectors that share its ref, tracking mode,
+write policy, and push destination. Repeat a repository in another block when
+some selectors need a different policy; per-selector overrides are not
+supported.
+
+```toml
+[[skills.imports]]
+repository = "https://github.com/example/skills.git"
+selectors = ["skills/*", "!skills/internal-only"]
+ref = "main"
+tracking = "tracked"
+write_policy = "branch"
+push_repository = "https://github.com/you/skills-fork.git"
+push_branch = "skill-updates"
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `repository` | yes | Source Git repository, reached through your existing Git authentication. Supported transports are HTTPS, SSH, Git, file, scp-style SSH, and local paths. Plain HTTP is refused; use HTTPS or SSH instead. |
+| `selectors` | yes | Repository-relative skill directory paths. Wildcards are allowed, and a `!` prefix excludes matches inside the same block. At least one positive selector is required. |
+| `ref` | no | Branch, tag, or commit. Omit it to follow the repository's default branch, which is re-resolved on every pull. |
+| `tracking` | no | `tracked` or `pinned`. Omitted values resolve from the ref kind: branches track, tags and commits pin. `tracking = "tracked"` with a tag or commit is an error. |
+| `write_policy` | no | `none` (default), `branch`, or `direct`. |
+| `push_repository` | no | Destination repository for upstream writes, using the same restricted transports as `repository`. Defaults to `repository`; set it to contribute through a fork. |
+| `push_branch` | when `write_policy = "branch"` | Explicit non-primary destination branch. Agent Layer never generates branch names. `al skills push` resolves the destination's actual default branch and refuses to write to it under `branch` policy, so a repository whose default branch is `develop` or `trunk` is protected too. |
+
+Selector rules:
+
+- Exclusions always win within their own block, apply before exact and wildcard
+  validation, and never filter files inside an included skill tree.
+- An exact selector that is missing, has no `SKILL.md`, or holds an invalid
+  skill is an error. A wildcard ignores ordinary directories without a
+  `SKILL.md`, but a matched directory with an invalid `SKILL.md` is still an
+  error. During `al skills pull` that error blocks only its own skill, so the
+  block's other skills still import; `al skills add` and `al skills remove`
+  validate the whole change first and leave local state untouched.
+- Each repository-and-selector pair must be unique across the whole file, so
+  `al skills remove` always identifies exactly one selector.
+- Ancestor and descendant selected paths from one repository are rejected
+  because they would create overlapping editable owners.
+
+Never put credentials in import configuration. Agent Layer uses your existing
+Git credentials and never stores them.
+
 ### Warnings
 
 Warning thresholds are optional. When a threshold is omitted, its warning is disabled. All values must be positive integers.
@@ -255,6 +322,10 @@ Agent Layer validates `config.toml` on every run. Common validation rules:
 - `http_transport` (when set) must be `sse` or `streamable`
 - HTTP servers cannot set `command` or `args`
 - Stdio servers cannot set `url` or `headers`
+- `skills.imports[].selectors` must include at least one positive selector, and every selector must be a normalized repository-relative path
+- `skills.imports[].tracking` must be `tracked` or `pinned`; `write_policy` must be `none`, `branch`, or `direct`
+- `write_policy = "branch"` requires an explicit non-primary `push_branch`; other policies must not set one. Configuration validation rejects the conventional primary names; `al skills push` additionally rejects the destination's actual default branch
+- Two blocks may not share the same repository, ref, tracking mode, write policy, and push destination, and a repository-and-selector pair may not repeat
 
 ## Environment variables
 
@@ -341,8 +412,16 @@ The command surface is intentionally small. Most of the time you only need one r
 | `al wizard` | Interactive configuration plus profile mode (`--profile`) and backup cleanup (`--cleanup-backups`). |
 | `al sync` | Regenerate client configs without launching a client. |
 | `al <client>` | Sync and launch a client (agy/claude/codex/copilot/vscode). |
-| `al dispatch` | Run a supported headless target (`codex`, `claude`, `antigravity`, or `random`) from an Agent Layer-launched caller. |
-| `al dispatch options --json` | Print the stable Agent Dispatch target/options contract for scripts. |
+| `al dispatch start` | Start a headless conversation asynchronously and return its handle. |
+| `al dispatch wait <handle>` | Wait up to eight minutes; return `running` if work continues, otherwise return the terminal result. |
+| `al dispatch continue <handle>` | Start another invocation in a terminal conversation. |
+| `al dispatch cancel <handle>` | Cancel a running invocation. |
+| `al skills add <repository> <selector>... [--yes]` | Import skills from a Git repository and project them. |
+| `al skills remove <repository> <selector> [--yes]` | Remove one configured import selector and recompute the desired set. |
+| `al skills status` | Report local imported-skill state. Local and network-free; `--all` expands it. |
+| `al skills pull` | Fetch configured sources, reconcile them with local content, and project the results. |
+| `al skills reset <name> [--yes]` | Permanently discard one imported skill's local edits and accept its current configured upstream version. |
+| `al skills push [--yes]` | Publish local imported-skill changes to configured destinations. |
 | `al probe agy` | Run the Antigravity capability probe and print JSON. |
 | `al doctor` | Validate configuration and probe enabled MCP servers. |
 | `al completion` | Print or install shell completions (bash/zsh/fish). |
@@ -386,7 +465,7 @@ Typical `.agent-layer/` files include:
 
 The optional workflow bundle creates missing project memory files under `docs/agent-layer/`:
 
-- `ISSUES.md`, `BACKLOG.md`, `ROADMAP.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`
+- `ISSUES.md`, `BACKLOG.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`
 
 **Wizard prompt**
 
@@ -546,39 +625,38 @@ Think of sync as a build step. You can run it any time you want to refresh gener
 **What it does**
 
 - Validates `.agent-layer/config.toml`
-- Reads `.agent-layer/instructions/`, `.agent-layer/skills/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
+- Reads `.agent-layer/instructions/`, both `.agent-layer/skills/` and `.agent-layer/skills-imported/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
 - Regenerates client outputs and launchers
 
 **Steps (high level)**
 
 1. Load and validate `config.toml`, then resolve secrets from `.agent-layer/.env`.
-2. Parse instructions and skills to build client-specific outputs.
+2. Parse instructions and load both canonical skill tiers into one locked source snapshot.
 3. Write generated configs and launchers for enabled clients.
 4. Emit warnings if any thresholds in `[warnings]` are exceeded.
 
 **Skill format**
 
-Skill sources align with the [agentskills.io specification](https://agentskills.io/specification), with explicit backward-compatibility behavior documented below. For authoring guidance, use the [Skill Design Guide](/skill-design); for installed command-line tools, use the [CLI Skill Design Guide](/cli-skill-design).
+Skill sources align with the [agentskills.io specification](https://agentskills.io/specification). For authoring guidance, use the [Skill Design Guide](/skill-design); for installed command-line tools, use the [CLI Skill Design Guide](/cli-skill-design).
 
-`.agent-layer/skills/` uses directory format:
+User-managed `.agent-layer/skills/` and Git-managed `.agent-layer/skills-imported/` use directory format:
 
-- `.agent-layer/skills/<name>/SKILL.md` (canonical; lowercase `skill.md` is accepted as a compatibility fallback)
+- `<source-tier>/<name>/SKILL.md` (uppercase filename required)
 
 Frontmatter fields:
 
 - Required: `name`, `description`
-- Optional: `license`, `compatibility`, `metadata`, `allowed-tools`
+- Additional fields are accepted without interpretation and projected unchanged.
 
 Validation notes (`al doctor`):
 
 - Name checks are NFKC-normalized and normalization-aware when matching `name` to the canonical source name.
 - Name limits: max 64 Unicode characters, lowercase letters/digits/hyphens only, no leading/trailing/consecutive hyphens.
 - Description limit: max 1024 Unicode characters.
-- Compatibility limit (when present): max 500 Unicode characters.
 - Size recommendation: `al doctor` warns when a skill source exceeds 500 lines.
-- Missing `name` remains load-compatible (name is derived from path), but `al doctor` warns.
-- Missing or empty `description` fails load/sync (fail-loud).
-- Directory skills using lowercase `skill.md` load for compatibility, but `al doctor` warns to use canonical `SKILL.md`.
+- Missing or empty `name` or `description` fails load/sync.
+- Lowercase-only `skill.md` fails with rename guidance; having both filename spellings is ambiguous and also fails.
+- Skill trees may contain only real directories and regular files. Symlinks and other node types fail with the offending path.
 
 Example:
 
@@ -595,7 +673,8 @@ description: Run a code quality audit.
 Common outputs include:
 
 - `.agents/skills/`
-- `.agy/antigravity-cli/settings.json`, `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
+- `.agy/antigravity-cli/settings.json` (shared state patched at Agent Layer-managed model, `permissions.allow`, and `agent_specific` paths)
 - `.codex/` (generated config and rules)
 - `.copilot/mcp-config.json`
 - `.vscode/mcp.json` and a managed block in `.vscode/settings.json`
@@ -603,7 +682,9 @@ Common outputs include:
 - `AGENTS.md`, `CLAUDE.md`
 - repo-local VS Code launchers under `.agent-layer/` when VS Code is enabled (for example `open-vscode.command`, `open-vscode.sh`, and `open-vscode.app/`)
 
-These files are derived outputs and safe to delete. Running `al sync` will recreate them.
+Generated outputs are safe to delete, and `al sync` will recreate them — except the shared-state files it patches in place, `.codex/config.toml` and `.agy/antigravity-cli/settings.json`. Keep both gitignored but do not treat them as disposable: native values (for Antigravity, workspace approval or trust) are preserved there. Managed MCP output remains safe to regenerate.
+
+Agent Layer owns `.agents/skills/` and `.claude/skills/` completely. Each enabled root is replaced from the canonical source snapshot on sync, and each disabled root is removed. Do not edit or independently install content there: direct changes and extra entries are discarded. Skill manifests, including unknown or provider-specific frontmatter, are projected byte-for-byte with no generated header.
 
 **Warnings**
 
@@ -639,26 +720,173 @@ al vscode --no-sync -- --reuse-window
 
 ### Dispatch
 
-`al dispatch` lets an Agent Layer-launched caller run one supported headless target for a focused text task:
+Agent Dispatch is a fully asynchronous, stateful interface.
 
 ```bash
-al dispatch --agent codex "Review this plan."
-al dispatch --agent random --skill review-plan "Review this plan."
-cat prompt.md | al dispatch --agent claude
+al dispatch options
+al dispatch start --agent codex --prompt-file prompt.md
+al dispatch wait <handle>
+al dispatch continue <handle> --prompt "Review the revision."
+al dispatch cancel <handle>
 ```
 
-Supported target values are `codex`, `claude`, `antigravity`, and `random`. When `--agent` is omitted, Agent Layer uses the env-only caller marker (`AL_DISPATCH_CALLER_AGENT`) and the caller's optional `agents.<caller>.dispatch.default_agent`, defaulting to `random`. Dispatch writes target answer text to stdout and status/errors to stderr, limits nested calls with `dispatch.max_depth` (default `1`), and uses the selected target's generated config and permissions. See `docs/AGENT-DISPATCH.md` in the repository for the full v1 contract.
+`options` reports available agents, configured defaults, and supported model
+and reasoning-effort overrides. `start` requires an agent and either `--prompt`
+or `--prompt-file`; model and reasoning effort are optional overrides. It
+returns a conversation handle immediately. `continue` inherits that
+conversation's resolved target configuration and returns immediately.
+`wait` blocks for up to eight minutes. If the invocation remains active, it
+returns `running` without changing that invocation; call `wait` again with the
+same handle. Completed output is stored atomically in the immutable Markdown
+file named by `result_path`. Every successful command returns exactly one JSON
+object; `wait` also writes its terminal JSON result before a non-zero
+failed-invocation exit.
 
-**Exit codes**
+The agent-facing interface contains read-only `options` plus `start`, `wait`,
+`continue`, and `cancel`. Parallel work uses independent conversation handles
+rather than a fanout resource. See `docs/AGENT-DISPATCH.md` in the repository
+for the complete contract.
 
-- `0` — dispatch completed successfully
-- `64` — usage or resolution failure (missing prompt and skill, unknown target, unknown caller with omitted `--agent`, unsupported override field for the selected target)
-- `65` — configuration or state failure (missing source skill, stale/missing target skill projection, malformed config, disabled target)
-- `69` — target unavailable (missing target binary, unauthenticated/unusable target CLI, no eligible target in the random-selection pool)
-- `70` — target or adapter failure (target subprocess non-zero exit, target rejection of a custom override value, changed structured stream shape, unreadable target output, internal dispatch error)
-- `75` — nested dispatch blocked by `dispatch.max_depth` or invalid `AL_DISPATCH_ACTIVE`
-- `130` — interrupted by `SIGINT`
-- `143` — terminated by `SIGTERM`
+### Skill import commands
+
+`al skills` manages Agent Skills imported from Git repositories.
+
+```bash
+al skills add https://github.com/example/skills.git skills/reviewer
+al skills add https://github.com/example/skills.git "skills/*" --ref v1.4.0
+al skills status --all
+al skills pull
+al skills reset reviewer
+al skills push
+al skills remove https://github.com/example/skills.git skills/reviewer
+```
+
+Imported skills live in `.agent-layer/skills-imported/<skill-name>/` and are
+projected through ordinary `al sync` alongside `.agent-layer/skills/`. Recorded
+upstream state lives in `.agent-layer/skills.lock.json`. The generated
+`.agent-layer/.gitignore` ignores both machine-managed paths by default. Agent
+Layer never stages or commits your repository.
+
+`add`, `pull`, `reset`, and `push` contact remote repositories. `remove`
+contacts one whenever the block keeps a selector so newly revealed membership
+can be resolved at the current source target. Removing a block's last positive
+selector is the only `remove` that stays local. `status`, `al sync`, and agent
+launch are always local.
+
+**add** validates the selectors you name, creates or extends the one block with
+a matching policy, performs the initial pull for a new block, and projects the
+result. For an existing block, already selected skills retain their independent
+lock entries while newly introduced membership is imported immediately at the
+current resolved source target. Configuration, imported skills, and lock state
+change together, so a failure leaves your prior state intact. It never
+searches, recommends, or previews skills.
+
+**remove** drops one configured positive or exclusion selector. Skills still
+matched by another selector stay managed. Removing an exclusion imports the
+skill it was hiding at the current resolved source target; already selected
+skills retain their own lock entries. Resolving new membership opens the source,
+so `remove` contacts the remote unless it is removing the block's last positive
+selector. A block left without a positive selector is removed.
+
+**status** is local and read-only. Its default output summarizes total, clean,
+modified, missing, invalid, and collided skills plus tracking and write policy
+counts. `--all` expands it to one entry per resolved skill and lists the
+configured exclusions.
+
+**pull** is the only command that advances tracked imports. It merges the locked
+upstream tree, your current local tree, and the new upstream tree, so local
+edits survive an update. A change on one side applies cleanly; incompatible
+changes to the same path, delete/modify cases, and non-text files changed on
+both sides are reported as conflicts and fail only that skill. Pinned imports
+stay put unless you change the configured ref, which is reconciled as a
+retarget rather than a removal plus addition.
+
+Each skill uses only its own lock entry as the upstream merge base. Members
+declared together may therefore remain at different commits after partial
+success. Newly matched skills are imported at that pull's current resolved
+target without moving an existing pinned sibling.
+
+**reset** requires exactly one imported skill name and has no `--all` form. It
+permanently discards that skill's local edits and atomically replaces its tree
+and lock entry with the current configured upstream version. Reset does not
+reconcile selector membership, inspect version-control status, or create a
+commit, stash, copy, or backup. Resetting a pinned branch deliberately repins it
+at the branch's current commit; ordinary pull leaves that new pin fixed. Reset
+prompts before discarding edits; non-interactive callers must pass `--yes`.
+
+**push** publishes local changes to each block's configured destination. It
+never pulls first and never force-pushes. Changes for one destination
+repository and branch are committed and pushed together. For a tracked import,
+push first verifies the source ref is still at the locked commit and tells you
+to run `al skills pull` if it moved. Push prompts before publication;
+non-interactive callers must pass `--yes`. `add` and `remove` use the same
+confirmation pattern before modifying import configuration.
+
+A missing configured branch starts from the destination's current default
+branch and fails without creating a ref when no default exists. Agent Layer
+publishes through Git's object database without checking out destination
+content. An ignored artifact, symbolic link, submodule, or unsupported node in
+a destination skill is an actionable failure that leaves the remote unchanged.
+
+### Repository credentials
+
+A private source is best reached through a Git credential helper or SSH, which
+Agent Layer never touches: the ordinary forms `git@host:org/repo.git` and
+`ssh://git@host/org/repo.git` need no configuration here at all.
+
+When a URL must carry a credential, reference it with an `${AL_*}` placeholder
+rather than writing it literally, exactly as MCP server URLs and headers do.
+`repository` and `push_repository` accept placeholders anywhere, including in
+URL userinfo:
+
+```toml title=".agent-layer/config.toml"
+[[skills.imports]]
+repository = "https://oauth2:${AL_SKILLS_TOKEN}@github.example.com/org/skills.git"
+selectors = ["skills/reviewer"]
+```
+
+```bash title=".agent-layer/.env"
+AL_SKILLS_TOKEN=your-token-here
+```
+
+Values come from `.agent-layer/.env`, which is filtered to the `AL_` namespace,
+so a placeholder naming anything else is rejected as unresolvable. A referenced
+key that is missing or empty fails the affected import with a message naming the
+variable, rather than contacting a remote with a half-substituted URL.
+
+The placeholder text is what stays canonical. It is what `config.toml` and
+`.agent-layer/skills.lock.json` record, what `al skills status` prints, and what
+identifies the block — so the lockfile remains portable and secret-free. The
+value is resolved only when a Git command runs, and is redacted
+back to its placeholder in any Git error, because a repository URL is an
+ordinary command argument that Git echoes into its own diagnostics.
+
+A **literal** credential is refused during configuration validation, in every
+place a URL can carry one:
+
+- a password component, on any scheme;
+- userinfo on any scheme other than `ssh` and `git`, where a username is an
+  account name rather than a token — including a scheme that is itself a
+  placeholder, whose resolved value cannot be checked;
+- a value under a credential-bearing query key such as `access_token`,
+  `api_key`, or `password`.
+
+Each must be built from placeholders instead. That keeps a secret out of
+`config.toml`, `.agent-layer/skills.lock.json`, and command output entirely.
+The query-key vocabulary is the same one that flags a literal secret in an MCP
+server URL, so both report the same shapes.
+
+**Retirement.** When a skill leaves the desired set — its selector was removed,
+an exclusion matched it, or it disappeared upstream — a clean imported
+directory is deleted along with its lock entry. A modified one is preserved and
+reported so you can move it into `.agent-layer/skills/` to adopt it as
+user-managed or delete it explicitly. Whole-skill deletion is never propagated
+upstream.
+
+**Ownership.** `.agent-layer/skills-imported/` is fully managed. A directory
+with no lock entry, or one name owned by both `.agent-layer/skills/` and
+`.agent-layer/skills-imported/`, is an actionable error rather than a silent
+shadow.
 
 ### Doctor
 

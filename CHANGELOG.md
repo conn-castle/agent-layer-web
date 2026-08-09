@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.16.3 - 2026-08-09
+
+### Fixed
+- The built-in Agent Dispatch MCP server now starts from the repository root embedded during `al sync`, so installing a newer global `al` no longer causes MCP clients with an older repo pin to bypass that pin. The launcher keeps the legacy `al dispatch mcp-server` argument contract when it reaches the cached binary, preserving compatibility with older pinned releases, and retains a same-project caller working directory for dispatched agents. Existing generated MCP files need a one-time refresh with the fixed binary (`AL_VERSION=v0.16.3 al sync`); this does not change the repo pin.
+
 ## v0.16.2 - 2026-08-08
 
 ### Added

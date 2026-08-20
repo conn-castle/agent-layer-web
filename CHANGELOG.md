@@ -1,7 +1,21 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.17.0 - 2026-08-20
+
+### Added
+- Grok Build CLI is a first-class Agent Layer client: `al grok`, `[agents.grok]` (`enabled`, `model`, `reasoning_effort`, `disable_memory`), always-on `GROK_HOME=<repo>/.grok-config`, native `.grok/config.toml` MCP and `[permission]` projection, seeded folder trust, `--sandbox` mapping, shared `.agents/skills/` skills, doctor warning for a missing or older-than-1.0.5 `grok`, `al probe grok`, wizard coverage, Agent Dispatch target `grok`, and `notifications.chime` via `.grok/hooks/agent-layer-chime.json`. Upgrade `0.17.0` defaults `agents.grok.enabled` to `false`.
+
+### Fixed
+- Grok sync now recognizes generated `.grok/config.toml` files by a stable marker across header revisions, requires the credential-bearing `.grok-config` home to be a real directory, and rejects symlinks before seeding repo trust outside the isolated home. Sync, `al grok`, Grok dispatch, and `al vscode` create that home at `0700` and tighten an existing real home the Grok CLI created at `0755`, instead of failing with a `chmod 700` instruction. Grok dispatch and capability probes also bound retained provider output with accurate truncation notices.
+
 ## v0.16.3 - 2026-08-09
+
+### Added
+- Added one content-addressed DeepSWE study workflow: `al benchmark run <study.toml>` executes explicit experiments from a website selection, resumes immutable cell evidence, and produces JSON and HTML reports with fixed-selection Welch comparisons and Holm-adjusted p-values. `al benchmark readiness` remains the developer preflight for the pinned task catalog.
+
+### Changed
+- Removed the obsolete `benchmark baseline`, `benchmark treatment`, `benchmark report`, matrix runner, and `benchmark correct-scores` implementations. Compatible historical selection evidence is read narrowly by the study reporter and corrected automatically from preserved verifier artifacts; private campaign state is never scanned or rewritten.
 
 ### Fixed
 - The built-in Agent Dispatch MCP server now starts from the repository root embedded during `al sync`, so installing a newer global `al` no longer causes MCP clients with an older repo pin to bypass that pin. The launcher keeps the legacy `al dispatch mcp-server` argument contract when it reaches the cached binary, preserving compatibility with older pinned releases, and retains a same-project caller working directory for dispatched agents. Existing generated MCP files need a one-time refresh with the fixed binary (`AL_VERSION=v0.16.3 al sync`); this does not change the repo pin.

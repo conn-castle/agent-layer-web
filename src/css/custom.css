@@ -734,6 +734,7 @@ article h3 {
 .client-logo--openai { height: 32px; }
 .client-logo--copilot { height: 32px; }
 .client-logo--antigravity { height: 36px; }
+.client-logo--grok { height: 36px; }
 
 /* Dark mode: add light background card behind all logos for visibility */
 [data-theme='dark'] .clients-grid {

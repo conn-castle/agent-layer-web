@@ -269,6 +269,7 @@ const config = {
               "^/docs(?!/(?:agent-dispatch|skill-imports)(?:/|$))",
           },
           { to: "/docs/agent-dispatch", label: "Agent Dispatch", position: "left" },
+          { to: "/docs/skill-imports", label: "Skill Sync", position: "left" },
           { to: "/deltaselect", label: "DeltaSelect", position: "left" },
           {
             type: "dropdown",
@@ -288,7 +289,6 @@ const config = {
             label: "More",
             position: "left",
             items: [
-              { to: "/docs/skill-imports", label: "Skill Imports" },
               { to: "/security", label: "Security" },
               { to: "/faq", label: "FAQ" },
               { to: "/changelog", label: "Changelog" },
@@ -298,8 +298,9 @@ const config = {
           { type: "docsVersionDropdown", position: "right" },
           {
             href: "https://github.com/conn-castle/agent-layer",
-            label: "GitHub",
             position: "right",
+            className: "header-github-link",
+            "aria-label": "Agent Layer on GitHub",
           },
         ],
       },

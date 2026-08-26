@@ -48,6 +48,10 @@ function readRedirectManifest() {
 }
 
 const retiredDocRedirects = readRedirectManifest();
+const docsVersions = JSON.parse(fs.readFileSync("./versions.json", "utf8"));
+const historicalDocVersions = Object.fromEntries(
+  docsVersions.slice(1).map((version) => [version, { noIndex: true }]),
+);
 
 /** @type {import("@docusaurus/types").HtmlTagObject[]} */
 const faviconHeadTags = [
@@ -93,7 +97,7 @@ const faviconHeadTags = [
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Agent Layer",
-  tagline: "One repo-local source of truth for instructions, slash commands, and MCP servers across coding agents.",
+  tagline: "Dispatch agents across providers and sync portable skills, instructions, approvals, and MCP servers from one repo-local source of truth.",
   favicon: "img/favicon/favicon.ico",
 
   url: "https://agent-layer.dev",
@@ -102,7 +106,31 @@ const config = {
   organizationName: "conn-castle",
   projectName: "agent-layer-web",
 
-  headTags: faviconHeadTags,
+  headTags: [
+    ...faviconHeadTags,
+    {
+      tagName: "script",
+      attributes: { type: "application/ld+json" },
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "Agent Layer",
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "macOS, Linux",
+        url: "https://agent-layer.dev/",
+        downloadUrl: "https://github.com/conn-castle/agent-layer/releases/latest",
+        softwareHelp: "https://agent-layer.dev/docs/",
+        sameAs: "https://github.com/conn-castle/agent-layer",
+        description:
+          "Open-source multi-agent orchestration and configuration for Claude Code, Codex, Grok, Antigravity, Copilot CLI, and VS Code.",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+      }),
+    },
+  ],
 
   scripts: [
     {
@@ -133,6 +161,7 @@ const config = {
           routeBasePath: "docs",
           sidebarPath: "./sidebars.js",
           includeCurrentVersion: false,
+          versions: historicalDocVersions,
         },
         blog: false,
         theme: {
@@ -141,7 +170,8 @@ const config = {
         sitemap: {
           changefreq: "daily",
           priority: 0.5,
-          ignorePatterns: ["/tags/**"],
+          lastmod: "date",
+          ignorePatterns: ["/tags/**", "/search"],
         },
       }),
     ],
@@ -171,6 +201,7 @@ const config = {
       "docusaurus-plugin-copy-page-button",
       {
         enabledActions: ["copy", "view"],
+        markdownUrl: true,
       },
     ],
     ...(isProd
@@ -217,7 +248,7 @@ const config = {
           name: "keywords",
           // Google doesn't rely on this heavily, but it helps keep intent explicit for some tooling.
           content:
-            "agent layer, mcp server setup, claude code, openai codex, vibe coding, repo-local instructions, coding agent config, slash commands for coding agents",
+            "agent layer, agent dispatch, multi-agent orchestration, AI agent delegation, Agent Skills, import Agent Skills, MCP server setup, Claude Code, OpenAI Codex, Grok, Antigravity, coding agent config, DeltaSelect, AI agent benchmark",
         },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },
@@ -230,23 +261,29 @@ const config = {
           srcDark: "img/branding/header_wordmark_dark.svg",
         },
         items: [
-          { to: "/docs", label: "Docs", position: "left" },
+          {
+            to: "/docs",
+            label: "Docs",
+            position: "left",
+            activeBaseRegex:
+              "^/docs(?!/(?:agent-dispatch|skill-imports|skills(?:-approach)?)(?:/|$))",
+          },
+          { to: "/docs/agent-dispatch", label: "Agent Dispatch", position: "left" },
           {
             type: "dropdown",
-            to: "/best-practices",
-            label: "Best Practices",
+            to: "/docs/skills",
+            label: "Skills",
             position: "left",
             items: [
-              { to: "/best-practices", label: "Overview" },
+              { to: "/docs/skill-imports", label: "Skill Imports" },
+              { to: "/docs/skills", label: "Skills" },
+              { to: "/docs/skills-approach", label: "Skills Approach" },
               { to: "/skill-design", label: "Skill Design" },
               { to: "/cli-skill-design", label: "CLI Skill Design" },
-              { to: "/instruction-design", label: "Instruction Design" },
             ],
           },
+          { to: "/deltaselect", label: "DeltaSelect", position: "left" },
           { to: "/install", label: "Install", position: "left" },
-          { to: "/security", label: "Security", position: "left" },
-          { to: "/faq", label: "FAQ", position: "left" },
-          { to: "/changelog", label: "Changelog", position: "left" },
           { type: "search", position: "right" },
           { type: "docsVersionDropdown", position: "right" },
           {
@@ -263,6 +300,9 @@ const config = {
             title: "Docs",
             items: [
               { label: "Docs", to: "/docs" },
+              { label: "Agent Dispatch", to: "/docs/agent-dispatch" },
+              { label: "Skill Imports", to: "/docs/skill-imports" },
+              { label: "DeltaSelect", to: "/deltaselect" },
               { label: "Install", to: "/install" },
               { label: "Security", to: "/security" },
               { label: "FAQ", to: "/faq" },

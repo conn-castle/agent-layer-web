@@ -49,6 +49,7 @@
   --al-search-text-color: #1f2937;
   --al-search-placeholder-color: #6b7280;
   --ifm-navbar-search-input-icon: url("data:image/svg+xml;utf8,<svg fill='%236b7280' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' height='16px' width='16px'><path d='M6.02945,10.20327a4.17382,4.17382,0,1,1,4.17382-4.17382A4.15609,4.15609,0,0,1,6.02945,10.20327Zm9.69195,4.2199L10.8989,9.59979A5.88021,5.88021,0,0,0,12.058,6.02856,6.00467,6.00467,0,1,0,9.59979,10.8989l4.82338,4.82338a.89729.89729,0,0,0,1.29912,0,.89749.89749,0,0,0-.00087-1.29909Z' /></svg>");
+  --ifm-navbar-sidebar-width: min(85vw, 22.5rem);
 
   /* Search local plugin theming */
   --search-local-modal-background: #ffffff;
@@ -299,6 +300,26 @@ h1, h2, h3, h4, h5, h6 {
   .navbar__search {
     margin-left: 0;
   }
+
+  .navbar__search [class*='searchHintContainer'] {
+    display: none !important;
+  }
+
+  .navbar__search .navbar__search-input {
+    width: 9rem;
+    padding-right: 0.75rem;
+  }
+
+  .navbar-sidebar {
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    max-width: 22.5rem;
+  }
+
+  .navbar-sidebar .menu__link {
+    align-items: center;
+    display: flex;
+    min-height: 44px;
+  }
 }
 
 /* ============================================
@@ -352,12 +373,43 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media (max-width: 768px) {
+  .hero-container {
+    padding: 2.5rem 1.25rem;
+  }
+
   .hero-title {
-    font-size: 2.5rem;
+    font-size: 2.1rem;
+    line-height: 1.2;
   }
 
   .hero-logo {
     height: 52px;
+  }
+
+}
+
+@media (max-width: 480px) {
+  .navbar__search {
+    margin-left: auto;
+  }
+
+  .navbar__search .navbar__search-input {
+    width: 6.5rem;
+    padding-left: 2.25rem;
+    padding-right: 0.5rem;
+  }
+
+}
+
+@media (max-width: 340px) {
+  .navbar__logo {
+    overflow: hidden;
+    width: 40px;
+  }
+
+  .navbar__logo img {
+    max-width: none;
+    width: 161px;
   }
 }
 
@@ -504,6 +556,41 @@ h1, h2, h3, h4, h5, h6 {
 
 .terminal-comment {
   color: #6c7086;
+}
+
+@media (max-width: 768px) {
+  .hero-tagline {
+    font-size: 1.05rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-button {
+    min-height: 44px;
+  }
+
+  .terminal-body {
+    font-size: 0.82rem;
+    overflow-x: auto;
+    padding: 1rem;
+  }
+
+  .terminal-line {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-buttons {
+    flex-direction: column;
+    margin: 0 auto 2rem;
+    max-width: 17.5rem;
+    width: 100%;
+  }
+
+  .hero-button {
+    width: 100%;
+  }
 }
 
 /* ============================================
@@ -771,13 +858,15 @@ article h3 {
   flex-wrap: wrap;
   max-width: 900px;
   margin: 0 auto;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 1rem;
   border-radius: 12px;
   background: transparent;
 }
 
 .client-logo-full {
   height: 36px;
+  max-width: 100%;
+  object-fit: contain;
   width: auto;
   transition: all 0.2s ease;
 }
@@ -793,7 +882,13 @@ article h3 {
 .client-logo--openai { height: 32px; }
 .client-logo--copilot { height: 32px; }
 .client-logo--antigravity { height: 36px; }
-.client-logo--grok { height: 32px; }
+.client-logo--grok { height: 35px; }
+
+@media (max-width: 480px) {
+  .client-logo-full {
+    max-width: 10rem;
+  }
+}
 
 /* Dark mode: add light background card behind all logos for visibility */
 [data-theme='dark'] .clients-grid {

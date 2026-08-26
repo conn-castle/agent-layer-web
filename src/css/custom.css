@@ -248,10 +248,10 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--ifm-color-primary);
 }
 
-@media (max-width: 1350px) {
+@media (max-width: 1380px) {
   .navbar__item {
-    padding-left: 0.35rem;
-    padding-right: 0.35rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   .navbar__link {
@@ -260,7 +260,12 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .navbar__search .navbar__search-input {
-    width: 7rem;
+    width: 8.5rem;
+    padding-right: 0.75rem;
+  }
+
+  .navbar__search [class*='searchHintContainer'] {
+    display: none !important;
   }
 }
 
@@ -276,6 +281,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0;
   height: 2rem;
   justify-content: center;
+  margin-right: 0.5rem;
   padding: 0;
   width: 2rem;
 }

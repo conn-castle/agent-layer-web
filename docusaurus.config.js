@@ -48,6 +48,9 @@ function readRedirectManifest() {
 }
 
 const retiredDocRedirects = readRedirectManifest();
+const pageRedirects = [
+  { from: "/deepswe-planner", to: "/deltaselect-tool" },
+];
 const docsVersions = JSON.parse(fs.readFileSync("./versions.json", "utf8"));
 const historicalDocVersions = Object.fromEntries(
   docsVersions.slice(1).map((version) => [version, { noIndex: true }]),
@@ -194,7 +197,7 @@ const config = {
     [
       "@docusaurus/plugin-client-redirects",
       {
-        redirects: retiredDocRedirects,
+        redirects: [...retiredDocRedirects, ...pageRedirects],
       },
     ],
     [

@@ -1,19 +1,34 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.17.3 - 2026-08-26
+
+### Added
+- `al benchmark run` supports pinned Antigravity 1.1.21 and Grok 1.0.5 coordinators, provider-native Agent Layer treatments, structured coordinator/dispatch evidence, and usage-based API-equivalent cost accounting without running a full benchmark during development.
+- Antigravity and Grok benchmark adapters use the same repo-local subscription OAuth boundaries as their Agent Layer clients. Antigravity prefers its repo-local OAuth fallback and otherwise exports only the native keyring OAuth profile into the contained CLI fallback file; Grok stages only `.grok-config/auth.json`.
+
+### Changed
+- Agent Dispatch's tested Antigravity baseline is now 1.1.21 because benchmark child usage requires that release's structured headless output. Older Antigravity releases fail the existing provider-version preflight instead of running under an unevidenced stream contract.
+
 ## v0.17.2 - 2026-08-25
 
 ### Added
 - Added `review/oversized` for otherwise-cleared entries over 100 files or 250 MiB (including oversized immediate children and top-level files), and `review/symlinks` for top-level or move-breaking links.
+- Interactive upgrades can record intentional unknown files and directories from `.agent-layer/` and `docs/agent-layer/` in a gitignored `.agent-layer/upgrade-keep-list`. Kept paths are omitted from future upgrade plans and deletion flows.
 
 ### Changed
+- `al wizard` replaces the workflow-bundle yes/no with an instruction choice (None, Rules, or Rules and memory) and a single skills catalog. Agent Layer development skills (`/implement`, `/ship-pr`, and the rest of that set) are one catalog row; selecting it installs those skills, and deselecting it removes them. Instructions and skills are independent.
 - Consolidated the hidden `al organize-scratch` safety model around one complete metadata/hazard walk and outcome pipeline. Dry runs are now strictly read-only and print the full proposed review list; apply preserves unresolved prior review entries and records actual moved, collision, failed, and unattempted outcomes. Directory/file size limits, credential-bearing content, authored assets, nested checkout markers, unreadable paths, and move-breaking symlinks now conservatively force review.
 - `al organize-scratch` now accepts non-repository and untracked/non-ignored roots but always refuses repository roots, including empty or unborn repositories, as well as subtrees containing tracked content. Git fact failures fail closed under stable English diagnostics. Registered entry, nested, foreign main, and foreign linked worktrees are all protected and repaired from the correct repository context, including newline-containing paths and external linked registrations owned by a moved main checkout, with failed or stale repairs returning non-zero. Invalid `--keep` paths now fail explicitly instead of being ignored.
 - `make dev` is now a fast formatting and lint loop (`make fmt` then `make lint`) instead of chaining coverage and release tests. `make ci` remains the complete pre-PR verification gate.
 - Public website pages and best-practice guides were rewritten for clearer, more direct language.
 
 ### Fixed
+- Listing `.agent-layer/tmp` in `.agent-layer/upgrade-keep-list` now keeps that directory and skips the grouped tmp deletion prompt. Individual files under tmp remain ineligible for the keep list. The interactive keep-list checklist includes `.agent-layer/tmp` last, unchecked.
 - Codex project trust is now seeded using the physical repository path after symlink resolution, so a repo opened through a symlink matches the managed `[projects."<root>"]` trust key. Trust-root resolution fails explicitly when the path cannot be canonicalized.
+- Nested upgrade keep-list file entries no longer treat ancestor directories as fully kept, so sibling unknown paths remain eligible for deletion.
+- Upgrades now preserve the `.agent-layer/` and `docs/agent-layer/` git tracking choices stored in `.agent-layer/gitignore.block` while still applying new managed ignore rules from the release template. Match, `al upgrade plan`, and overwrite preview compare against that merged target, so customized tracking alone is not reported as an update. A `#` after a managed tracking pattern is rejected as unsupported, because Git treats that text as part of the pattern rather than a comment.
+- Locked source loading removes empty immediate child directories under `.agent-layer/skills/` before validation, so sync, launch, dispatch, and skill-import share the same cleanup. Nonempty or malformed skill directories still fail strictly.
 
 ## v0.17.1 - 2026-08-21
 

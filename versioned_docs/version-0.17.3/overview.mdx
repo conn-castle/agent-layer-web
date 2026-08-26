@@ -1,0 +1,92 @@
+---
+title: Overview
+sidebar_label: Overview
+description: "Start here: what Agent Layer is, how to use it, and where to go next."
+slug: /
+sidebar_position: 0
+---
+
+Agent Layer is a small CLI that keeps AI-assisted development consistent across tools. You define agent instructions, approvals, and MCP servers once in a repo-local `.agent-layer/` folder, and `al` generates each client's native config on demand.
+
+The same repo uses one source configuration whether you launch Antigravity, Claude, Codex, Copilot CLI, Grok, or VS Code. Agent Layer maps it to the closest behavior each client supports; approval enforcement is client-dependent and best effort. You do not copy configuration between clients. You review and refine agent setup in one folder.
+
+Follow the recommended path below to set up Agent Layer, customize it, and find detailed guidance when you need it.
+
+## What you get
+
+- A `.agent-layer/` folder you can treat like code (reviewable, shareable, easy to audit).
+- Generated client files that are safe to delete and recreate (apart from a couple of documented shared-state files that `al sync` patches in place).
+- Guardrails for autonomy: choose what can run automatically and what must be approved.
+- Built-in workflow skills that give agents structured, repeatable processes for planning, debugging, shipping PRs, and more.
+- Optional version pinning so a team stays on the same behavior across machines and CI.
+
+## Who this is for
+
+- You use more than one agent client and want them to behave consistently.
+- You want repo-specific safety rules instead of one global configuration for every project.
+- You want to add tools (MCP servers) once and have them available everywhere.
+- You want agent setup to be explicit and reviewable, not a collection of local tweaks.
+
+## Recommended path
+
+1. [Getting started](./getting-started) - run your first agent
+2. [Concepts](./concepts) - learn how Agent Layer works and where the safety boundaries are
+3. [Reference](./reference) - config, environment variables, and CLI behavior
+4. [Agent Dispatch](./agent-dispatch) - asynchronous, headless provider delegation
+5. [Skills](./skills) - built-in workflows for planning, debugging, shipping, and more
+6. [Skills approach](./skills-approach) - Agent Layer's skill ethos and target root-skill model
+7. [Best Practices](/best-practices) - universal skill, CLI skill, and instruction design guides
+8. [Troubleshooting](./troubleshooting) - common errors and fixes
+9. [Upgrades](./upgrades) - upgrade event model, compatibility guarantees, and migration rules
+
+## Documentation map
+
+### [Getting started](./getting-started)
+
+Install Agent Layer, initialize your first repo, and understand what gets generated. Includes: [Quick start](./getting-started#quick-start), [Repo layout](./getting-started#repo-layout), and [CLI command map](./getting-started#cli-command-map).
+
+### [Concepts](./concepts)
+
+How Agent Layer keeps agents consistent, and the safety boundaries involved. Includes: [Single source of truth](./concepts#single-source-of-truth), [Approvals and safety](./concepts#approvals-and-safety), [MCP servers](./concepts#mcp-servers), [Agent Dispatch](./concepts#agent-dispatch), [Project memory](./concepts#project-memory), and [Version pinning](./concepts#version-pinning).
+
+### [Reference](./reference)
+
+Authoritative configuration, environment variables, and CLI behavior. Includes: [Configuration](./reference#configuration), [Environment variables](./reference#environment-variables), and the [CLI guide](./reference#cli-guide).
+
+### [Agent Dispatch](./agent-dispatch)
+
+Asynchronous, headless provider conversations for agents, people, and scripts. Includes: [MCP tools](./agent-dispatch#mcp-tools), [CLI commands](./agent-dispatch#cli-commands), the [conversation lifecycle](./agent-dispatch#conversation-lifecycle), and [timeouts and cancellation](./agent-dispatch#waiting-and-cancellation).
+
+### [Skills](./skills)
+
+Built-in workflow skills that give agents structured processes for common tasks. Includes: [The built-in skill library](./skills#built-in-skill-library), [Skill categories](./skills#built-in-skill-library), [Anatomy of a skill](./skills#skill-structure), and [Writing your own skills](./skills#writing-your-own-skills).
+
+### [Skills approach](./skills-approach)
+
+Agent Layer's skill ethos, target root modules, workflow boundaries, and mapping
+from conceptual names to current bundled skill names.
+
+### [Best Practices](/best-practices)
+
+Research-backed, product-neutral guides for designing [agent skills](/skill-design), [CLI-focused skills](/cli-skill-design), and [always-loaded instructions](/instruction-design).
+
+### [Troubleshooting](./troubleshooting)
+
+Fast fixes for install, config, and MCP issues. Includes: [Install issues](./troubleshooting#install-issues), [Configuration errors](./troubleshooting#configuration-errors), [MCP server issues](./troubleshooting#mcp-server-issues), and [Offline/pinning](./troubleshooting#pinning-and-offline-mode).
+
+### [Upgrades](./upgrades)
+
+Upgrade policy and release migration expectations. Includes: [Upgrade event model](./upgrades#upgrade-event-model), [Compatibility guarantees](./upgrades#compatibility-guarantees), [Migration rules by release](./upgrades#migration-rules-by-release), [docs version retention and access](./upgrades#documentation-version-retention-and-access), and [OS and shell capability matrix](./upgrades#os-and-shell-capability-matrix).
+
+## Other resources
+
+- [Install](/install)
+- [FAQ](/faq)
+- [Security](/security)
+- [Best Practices](/best-practices)
+- [Changelog](/changelog)
+- [Contributing](/contributing)
+
+:::note
+If Agent Layer is useful, consider starring the repository so new users can find it.
+:::

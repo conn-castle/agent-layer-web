@@ -6,7 +6,7 @@ sidebar_position: 5
 
 Agent skills are structured Markdown workflows that guide AI coding agents through complex, multi-step tasks. Instead of describing what you want step by step, you invoke a skill and the agent follows a tested process with built-in quality gates.
 
-Skills are the difference between "write me a PR" and a repeatable lifecycle that audits changes, runs CI, waits for review comments, addresses every one, and confirms CI passes before finishing. They encode the workflow discipline that makes autonomous agents trustworthy.
+A skill such as `ship-pr` can audit changes, run CI, wait for review comments, address every one, and confirm CI passes before finishing. You get that whole lifecycle from one invocation instead of restating the steps each time.
 
 ## The skill standard
 
@@ -58,19 +58,19 @@ The recommended section order is informed by research on how language models pro
 
 The skill standard defines the format. Agent Layer builds on it with:
 
-- **A workflow-bundle library of 7 focused skills** covering implementation, PR lifecycle, auditing, and autonomous delivery — available when the workflow bundle is installed through the wizard and refreshed through upgrade flows for repos that already have it.
-- **Client projection** — User-managed `.agent-layer/skills/` and Git-managed `.agent-layer/skills-imported/` are canonical. `al sync` merges them into one immutable source snapshot, then projects that snapshot to `.agents/skills/` for shared-skill clients and `.claude/skills/` for Claude Code.
+- **A library of 7 focused development skills** covering implementation, PR lifecycle, auditing, and autonomous delivery — available as the Agent Layer development skills catalog row in the wizard and refreshed through upgrade flows for repos that already have them.
+- **Client projection** — User-managed `.agent-layer/skills/` and Git-managed `.agent-layer/skills-imported/` are the files you edit. `al sync` merges them into one immutable source snapshot, then writes that snapshot to `.agents/skills/` for shared-skill clients and `.claude/skills/` for Claude Code.
 - **Memory integration** — Skills read from and write to project memory files (`ISSUES.md`, `BACKLOG.md`, `DECISIONS.md`, `COMMANDS.md`, `CONTEXT.md`), keeping project context durable across sessions.
 - **Artifact conventions** — Skills keep agent-only plans, reports, and trackers under `.agent-layer/tmp/`, where another agent can pick them up without mixing transient state into product files.
 - **Orchestrator composition** — Top-level skills delegate to supporting skills automatically, enabling complex multi-step workflows from a single invocation.
 
 ## Recommended workflow
 
-The highest-leverage way to use Agent Layer skills follows two phases:
+The usual way to use Agent Layer skills follows two phases:
 
 ### 1. Plan with the agent
 
-Spend time up front writing out your plans and requirements documentation collaboratively with the agent. Use the project memory files (`CONTEXT.md`, `BACKLOG.md`) as the working surface. This investment pays for itself — clear plans produce dramatically better autonomous execution.
+Spend time up front writing plans and requirements with the agent. Put that context in the project memory files (`CONTEXT.md`, `BACKLOG.md`). Clear plans make later autonomous execution more reliable.
 
 ### 2. Execute with orchestrator skills
 
@@ -99,7 +99,7 @@ Skills accept flexible inputs: plain-language descriptions, file paths, constrai
 
 ## Built-in skill library
 
-The Agent Layer workflow bundle includes 7 skills. They are organized here by how you typically use them. Agent Layer also ships optional CLI catalog skills for installed tools; those are listed separately below.
+Agent Layer development skills are 7 skills. They are organized here by how you typically use them. Select **Agent Layer development skills** in `al wizard` to install the set; unchecking that row removes it. Agent Layer also ships optional catalog skills for installed tools; those are listed separately below.
 
 ### Orchestrator skills
 
@@ -124,18 +124,19 @@ These are used by orchestrators or available for fine-grained control when you n
 | `audit-memory` | Audits agent memory files for structure, staleness, placement, consistency, and decision-log bloat, fixing accepted findings. |
 | `interface-audit` | Audits product interfaces as component boundaries, scores complexity and debt, and produces interface cleanup recommendations without implementing changes. |
 
-### Optional CLI catalog skills
+### Optional catalog skills
 
-These skills are installed only when selected through the CLI catalog. They route
-agents to optional tool integrations. Most require the corresponding command to
-be available on `PATH`; `dispatch-agent` uses the built-in Agent Dispatch MCP
-tools and has no external binary requirement.
+These skills are installed only when selected in the wizard catalog. Tool rows
+route agents to optional integrations and usually need that command on `PATH`.
+`dispatch-agent` uses the built-in Agent Dispatch MCP tools. `skill-sync` uses
+the current `al` binary.
 
 | Skill | What it does |
 | --- | --- |
 | `dispatch-agent` | Uses the built-in [Agent Dispatch](./agent-dispatch) MCP tools only when the user names an external dispatch target or another skill explicitly requires dispatch; it has no external binary requirement. |
 | `find-docs` | Uses Context7 for current API and library documentation when local docs or CLI help are insufficient. |
 | `playwright` | Uses `playwright-cli` for browser automation, screenshots, user interface inspection, and Playwright test work. |
+| `skill-sync` | Imports and updates skills from Git. |
 | `tavily-web` | Uses Tavily CLI for web search, URL extraction, site mapping, and cited research. |
 
 ## Writing your own skills
@@ -163,7 +164,7 @@ Run `al sync` to project the new skill into all enabled clients.
 
 The two client skill roots are Agent Layer-owned disposable output. Do not edit or install skills directly in `.agents/skills/` or `.claude/skills/`; sync replaces each enabled root wholesale and removes all extra content. `SKILL.md` bytes, unknown/provider-specific frontmatter, nested resources, and executable bits are preserved exactly. Lowercase `skill.md` is rejected. Every source-tree node must be a real directory or regular file; symlinks and all other node types are rejected, including symlinked skill directories and `SKILL.md` files.
 
-For the complete research-backed authoring guide — including empirical studies on instruction-following, context length effects, and constraint composition — see [Skill Design Guide](/skill-design). For command-line tool workflows, use [CLI Skill Design Guide](/cli-skill-design) so live `--help` stays the source of truth for syntax.
+For the complete research-backed authoring guide — including empirical studies on instruction-following, context length effects, and constraint composition — see [Skill Design Guide](/skill-design). For command-line tool workflows, use [CLI Skill Design Guide](/cli-skill-design) so live `--help` stays the place to look up syntax.
 
 ## Importing skills from Git
 
@@ -289,13 +290,13 @@ al skills remove https://github.com/example/skills.git skills/reviewer
 ```
 
 See the [CLI reference](./reference#skill-import-commands) for the full command
-contract and [configuration reference](./reference#skill-imports) for every
+behavior and [configuration reference](./reference#skill-imports) for every
 `[[skills.imports]]` field.
 
 ## Skills approach
 
-The built-in skills follow an Agent Layer-specific model: deterministic root
-skills with stable input/output contracts, composed by workflow skills that own
-loops and orchestration. See [Skills approach](./skills-approach) for the
-canonical ethos, target root modules, and mapping to the current bundled skill
+The built-in skills follow an Agent Layer-specific model: root skills with
+stable inputs and outputs, composed by workflow skills that own loops and
+orchestration. See [Skills approach](./skills-approach) for the design
+principles, target root modules, and mapping to the current bundled skill
 names.

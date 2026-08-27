@@ -1,18 +1,18 @@
 ---
 title: Upgrades
-description: Upgrade contract, compatibility guarantees, migration rules, and platform support.
-sidebar_position: 7
+description: Upgrade policy, compatibility guarantees, migration rules, and platform support.
+sidebar_position: 8
 ---
 
-This page is the canonical upgrade contract for Agent Layer.
+This page defines how Agent Layer upgrades work.
 
-It defines:
+It covers:
 - upgrade event categories,
 - compatibility guarantees,
 - release-versioned migration rules,
 - and the supported OS/shell capability matrix.
 
-If guidance in other docs is shorter or summarized, this page is the source of truth.
+If guidance in other docs is shorter or summarized, this page is authoritative.
 
 ## In this page
 
@@ -75,13 +75,17 @@ What it does not mean:
 - It is not a guarantee that every repo custom state can be auto-migrated.
 - It does not guarantee one-step upgrades for skipped release lines.
 
+## Repo-local upgrade keep list
+
+When an interactive upgrade finds unknown paths under `.agent-layer/` or `docs/agent-layer/`, it offers to record intentional local paths in `.agent-layer/upgrade-keep-list` before continuing to the existing deletion flow. The checklist lists `.agent-layer/tmp` last and unchecked, rather than as individual tmp files. Kept files and directory subtrees are omitted from future upgrade plans and deletion decisions, including non-interactive `--apply-deletions` and `--apply-tmp-deletions`. Listing `.agent-layer/tmp` keeps the whole directory and skips the grouped tmp deletion prompt. Individual files under tmp cannot be listed. Keeping a nested file does not keep sibling paths under the same parent. The gitignored file uses one exact repo-relative path per line, supports blank lines and `#` comments, does not expand globs, and is never pruned automatically. It does not suppress managed-template updates. Tmp deletion otherwise retains its separate double-confirm cleanup flow.
+
 ## Ephemeral artifacts and rollback scope
 
 `.agent-layer/tmp/` is a scratch directory for agent run artifacts (plans, reports, scratch dumps). It is treated specially across the upgrade lifecycle:
 
 - **Snapshots exclude tmp.** Pre-upgrade snapshots under `.agent-layer/state/upgrade-snapshots/` do not capture files under `.agent-layer/tmp/`. This keeps snapshot size bounded regardless of how much scratch state has accumulated.
 - **Rollback does not restore tmp.** `al upgrade rollback <snapshot-id>` will not recreate any tmp file deleted during the upgrade. If you need to keep an in-progress agent artifact across an upgrade, copy it out of `.agent-layer/tmp/` first.
-- **Tmp deletion is gated.** Interactive deletion requires a destructive double-confirm. Non-interactive deletion requires the dedicated `--apply-tmp-deletions` flag — `--apply-deletions` alone never touches tmp content. The interactive "delete all unknowns?" prompt is similarly scoped: it deletes everything **except** tmp, and the grouped tmp prompt always fires separately.
+- **Tmp deletion is gated.** Interactive deletion requires a destructive double-confirm unless `.agent-layer/tmp` is listed in `.agent-layer/upgrade-keep-list`. Non-interactive deletion requires the dedicated `--apply-tmp-deletions` flag — `--apply-deletions` alone never touches tmp content. The interactive "delete all unknowns?" prompt is similarly scoped: it deletes everything **except** tmp, and the grouped tmp prompt fires separately when tmp is not kept.
 
 If automatic or manual rollback fails, the snapshot is recorded with status `rollback_failed` and remains available for recovery. Resolve the reported filesystem error, then retry `al upgrade rollback <snapshot-id>`. Every retry resets the snapshot's scoped targets before restoring them, so a failure that restored only some entries can safely converge on the captured state. After a successful retry, the snapshot keeps its prior failure details as recovery evidence and is marked `manually_rolled_back`.
 
@@ -93,6 +97,12 @@ Migration rules are published per release and versioned with docs/release notes.
 
 | Target release | Supported source release lines | Event summary | Required manual actions | Notes |
 | --- | --- | --- | --- | --- |
+| `v0.17.6` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2`, `0.16.3`, `0.17.0`, `0.17.1`, `0.17.2`, `0.17.3`, `0.17.4`, `0.17.5` | `safe auto`: Fixes empty MCP preflight contract encoding and the pinned `quill-shared-toolbar-focus` readiness image. Benchmark readiness adds bounded task selection, sharding, timeouts, and progress reporting. | Run `al upgrade plan` then `al upgrade`. | The v0.17.6 migration manifest is empty; changes are runtime, benchmark-certification, or release-process fixes and require no manual migration. It preserves the `0.10.2` migration floor. |
+| `v0.17.5` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2`, `0.16.3`, `0.17.0`, `0.17.1`, `0.17.2`, `0.17.3`, `0.17.4` | `safe auto`: Fixes empty MCP preflight contracts encoding `servers` as `null` instead of an empty array when no MCP servers are enabled. | Run `al upgrade plan` then `al upgrade`. | The v0.17.5 migration manifest is empty; the change is a runtime contract fix and requires no manual migration. It preserves the `0.10.2` migration floor. |
+| `v0.17.4` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2`, `0.16.3`, `0.17.0`, `0.17.1`, `0.17.2`, `0.17.3` | `safe auto`: Release preflight now certifies the pinned DeepSWE benchmark catalog before artifact builds, benchmark selections use exact canonical provider model identities, and `.agent-layer/.env` is optional when no secrets are needed. | Run `al upgrade plan` then `al upgrade`. | The v0.17.4 migration manifest is empty; changes are additive, validation-only, or handled at runtime. It preserves the `0.10.2` migration floor. |
+| `v0.17.3` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2`, `0.16.3`, `0.17.0`, `0.17.1`, `0.17.2` | `safe auto`: Adds pinned Antigravity and Grok benchmark adapters for `al benchmark run`, provider-native Agent Layer treatments, structured coordinator/dispatch evidence, and usage-based API-equivalent cost accounting. Raises the tested Antigravity baseline to 1.1.21 for the structured headless output required by benchmark child usage. | Run `al upgrade plan` then `al upgrade`. | The v0.17.3 migration manifest is empty; changes are additive or handled at runtime. The release adds a template ownership manifest and preserves the `0.10.2` migration floor. |
+| `v0.17.2` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2`, `0.16.3`, `0.17.0`, `0.17.1` | `safe auto`: Hardens hidden `al organize-scratch` so dry runs are read-only, apply records actual outcomes, and repository roots plus worktrees stay protected. Codex project trust now uses the physical repository path after symlink resolution. `make dev` is a formatting and lint loop; `make ci` remains the full verification gate. Public website copy is rewritten for clarity. | Run `al upgrade plan` then `al upgrade`. | The v0.17.2 migration manifest is empty; all changes are additive or handled at runtime. It preserves the `0.10.2` migration floor. |
+| `v0.17.1` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2`, `0.16.3`, `0.17.0` | `safe auto`: The Claude instruction shim is now `.claude/CLAUDE.md` instead of root `CLAUDE.md`. When Grok is enabled, Claude compatibility is disabled in Grok configuration so Grok does not load duplicate instructions. Adds `al skills diff <name>` for live tree comparisons, conflict resolution workspaces under `.agent-layer/tmp/skill-conflicts/<name>/` via `al skills resolve <name>`, and `read-pr-comments.sh` in `ship-pr`. | Run `al upgrade plan` then `al upgrade`. | Migration manifest includes one `delete_generated_artifact` operation (`CLAUDE.md`) to remove the generated root Claude instruction shim; hand-authored root `CLAUDE.md` files are left untouched. Preserves the `0.10.2` migration floor. |
 | `v0.17.0` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2`, `0.16.3` | `safe auto`: Adds Grok Build CLI as a supported agent client (`al grok`, `[agents.grok]` config section, native `.grok/config.toml` projection, shared `.agents/skills/` skills, and Agent Dispatch target `grok`). | Run `al upgrade plan` then `al upgrade`. If you want Grok support, set `[agents.grok] enabled = true` after upgrading or re-run `al wizard`. | Migration manifest includes one `config_set_default` operation (`agents.grok.enabled = false`). No breaking changes. |
 | `v0.16.3` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1`, `0.16.2` | `safe auto`: Generated Agent Dispatch MCP launchers enter the repository root recorded by `al sync` before invoking `al`, so the global shim resolves that repository’s pin even when an MCP client starts the server elsewhere. When the MCP client started from a directory in that same Agent Layer project, the launcher retains that directory as the dispatch working directory. | Run `al upgrade plan` then `al upgrade`. Refresh existing generated MCP files once with `AL_VERSION=v0.16.3 al sync`; this refresh does not change the repository pin. | The v0.16.3 migration manifest is empty; the generated-MCP refresh is a projection update handled by `al sync`. It preserves the `0.10.2` migration floor, and the launcher retains the legacy `al dispatch mcp-server` arguments so cached older binaries continue to work. |
 | `v0.16.2` | `0.10.2`, `0.11.0`, `0.12.0`, `0.12.1`, `0.12.2`, `0.12.3`, `0.13.0`, `0.14.0`, `0.15.0`, `0.16.0`, `0.16.1` | `safe auto`: Adds `al benchmark correct-scores` for regenerating versioned canonical DeepSWE results from preserved verifier evidence; benchmark reports now fail rather than emit a known-incorrect score. The skill lock file gains schema version 2, which adds one optional per-skill publication checkpoint; this release reads version 1 and version 2, and writes version 2 only when it next changes a lock, so an unchanged version 1 lock is left alone. A project with no `[[skills.imports]]` has no lock file at all and is unaffected. Upgrades from versions before v0.16.0 still apply the v0.16.0 skill, instruction, and import migrations. `needs review`: The generated `.agent-layer/.gitignore` stops ignoring `skills-imported/` and `skills.lock.json`, a generated-file ownership boundary change, so a project that commits `.agent-layer/` also commits its imported skills and lockfile. `al skills push` records the last published tree separately from the source lock, so repeated pushes to a contribution branch add commits to the same pull-request branch. | Run `al upgrade plan` then `al upgrade`. If you commit `.agent-layer/`, run `git add .agent-layer/skills-imported .agent-layer/skills.lock.json` once after upgrading, and comment out the `/.agent-layer/` line in `.agent-layer/gitignore.block` if the root `.gitignore` still ignores the whole directory. If you do commit the lock, every consumer of that repository needs v0.16.2 or newer, because v0.16.1 and earlier reject a version 2 lock with `unsupported schema version 2 (this Agent Layer supports 1)`. Agent Layer does not promise that an older binary can read newer state; pin the repository version to keep consumers aligned. | The v0.16.2 migration manifest is empty; all changes are additive or handled at runtime. It preserves the `0.10.2` migration floor, and chained upgrades still load the v0.16.0 operations. `.agent-layer/.gitignore` is agent-owned and rewritten on every `al init`/`al upgrade`, so the ignore-rule change needs no migration operation. A version-only difference never triggers a lock rewrite: the import transaction compares the old and new lock as marshaled bytes at the current schema version before committing. `.agent-layer/skills-imported/.staging/` remains ignored. |
@@ -183,7 +193,7 @@ Windows is not supported.
 
 ## Commitment level and limitations
 
-This contract is intended to be explicit without over-promising:
+These guarantees are explicit without over-promising:
 
 - We commit to best-effort adherence to this model and guarantee scope.
 - If we cannot fully meet a guarantee in a specific release, we will document the limitation clearly in release notes and migration guidance.

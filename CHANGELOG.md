@@ -1,6 +1,33 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## v0.17.6 - 2026-08-27
+
+### Changed
+- Release catalog certification now runs before tagging in eight isolated, bounded shards. Release publication reuses only a successful certification for the exact tag commit instead of repeating the full Docker audit.
+- Benchmark readiness reports task-level progress and supports deterministic task filtering, sharding, and per-task timeouts.
+
+### Fixed
+- Empty MCP preflight contracts now encode `servers` as an array, preserving the benchmark study contract when no MCP servers are enabled.
+- The `quill-shared-toolbar-focus` readiness image now installs pinned `xauth`, allowing the complete pinned DeepSWE catalog to certify successfully.
+
+## v0.17.5 - 2026-08-27
+
+### Fixed
+- Empty MCP preflight contracts now encode `servers` as an array, preserving the benchmark study contract when no MCP servers are enabled.
+
+## v0.17.4 - 2026-08-26
+
+### Changed
+- Release preflight now certifies the pinned DeepSWE benchmark catalog before building release artifacts, with bounded Docker image cleanup during the catalog audit.
+- Hosted benchmark readiness now bootstraps a minimal Agent Layer workspace in the release checkout before certification.
+- DeepSWE benchmark selections now translate published provider model identities to the exact canonical identities accepted by the benchmark CLI and report supported models when selectors are invalid.
+- The `.agent-layer/.env` file is optional when no Agent Layer secrets are needed; unreadable or malformed files still fail explicitly.
+- The `implement` skill now limits plan and code-review corrections to the requested input scope.
+
+### Fixed
+- Docker cleanup uses the correct force flag for containers, volumes, and task images.
+
 ## v0.17.3 - 2026-08-26
 
 ### Added

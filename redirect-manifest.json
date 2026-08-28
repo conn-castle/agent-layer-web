@@ -268,6 +268,42 @@
     "to": "/docs/upgrades"
   },
   {
+    "from": "/docs/0.14.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.14.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.14.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.14.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.14.0/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.14.0/skills-approach",
+    "to": "/docs/skills-approach"
+  },
+  {
+    "from": "/docs/0.14.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.14.0/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.14.0/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
     "from": "/docs/0.16.0/",
     "to": "/docs/"
   },
@@ -529,6 +565,126 @@
   },
   {
     "from": "/docs/0.17.3/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.17.6/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.17.6/agent-dispatch",
+    "to": "/docs/agent-dispatch"
+  },
+  {
+    "from": "/docs/0.17.6/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.17.6/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.17.6/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.17.6/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.17.6/skills-approach",
+    "to": "/docs/skills-approach"
+  },
+  {
+    "from": "/docs/0.17.6/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.17.6/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.17.6/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.17.7/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.17.7/agent-dispatch",
+    "to": "/docs/agent-dispatch"
+  },
+  {
+    "from": "/docs/0.17.7/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.17.7/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.17.7/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.17.7/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.17.7/skills-approach",
+    "to": "/docs/skills-approach"
+  },
+  {
+    "from": "/docs/0.17.7/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.17.7/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.17.7/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
+    "from": "/docs/0.17.8/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.17.8/agent-dispatch",
+    "to": "/docs/agent-dispatch"
+  },
+  {
+    "from": "/docs/0.17.8/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.17.8/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.17.8/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.17.8/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.17.8/skills-approach",
+    "to": "/docs/skills-approach"
+  },
+  {
+    "from": "/docs/0.17.8/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.17.8/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.17.8/upgrades",
     "to": "/docs/upgrades"
   },
   {

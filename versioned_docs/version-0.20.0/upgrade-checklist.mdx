@@ -1,7 +1,7 @@
 ---
 title: Upgrade checklist
 description: One-page upgrade checklist for interactive teams and CI.
-sidebar_position: 8
+sidebar_position: 9
 ---
 
 Use this page when you want a repeatable, low-risk upgrade runbook.
@@ -9,8 +9,10 @@ Use this page when you want a repeatable, low-risk upgrade runbook.
 ## Interactive team checklist
 
 1. Update the global `al` CLI.
-   - Homebrew: `brew upgrade conn-castle/tap/agent-layer`
-   - Script: `curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh | bash`
+   If the installed CLI predates `al update`, update it once with `brew upgrade conn-castle/tap/agent-layer` for Homebrew or rerun the original script install command with the same prefix.
+   ```bash
+   al update
+   ```
 2. Confirm the installed version:
    ```bash
    al --version
@@ -55,16 +57,17 @@ Only add these flags when intentionally applying those categories:
 - `--apply-tmp-deletions` — destructively delete files under `.agent-layer/tmp/` (ephemeral agent run artifacts; not snapshotted, not rollback-restorable). Requires `--yes` and is independent of `--apply-deletions`.
 
 :::warning Tmp deletions are destructive and not rollback-protected
-`--apply-tmp-deletions` permanently removes everything under `.agent-layer/tmp/`. The pre-upgrade snapshot does **not** capture tmp content, so `al upgrade rollback <snapshot-id>` will not bring back deleted plans, reports, or scratch files. Use this flag only when you are sure CI does not host any in-progress agent artifacts you need to keep. See [Ephemeral artifacts under .agent-layer/tmp/](./reference#ephemeral-artifacts-under-agent-layertmp) for the full contract.
+`--apply-tmp-deletions` permanently removes everything under `.agent-layer/tmp/`. The pre-upgrade snapshot does **not** capture tmp content, so `al upgrade rollback <snapshot-id>` will not bring back deleted plans, reports, or scratch files. Use this flag only when you are sure CI does not host any in-progress agent artifacts you need to keep. See [Ephemeral artifacts under .agent-layer/tmp/](./reference#ephemeral-artifacts-under-agent-layertmp) for the full rules.
 :::
 
 ## Shell quick paths (macOS/Linux)
 
+If the installed CLI does not recognize `al update`, first use the [legacy CLI fallback](./upgrades#how-to-upgrade). This applies to both shell paths below.
+
 ### bash / zsh
 
 ```bash
-brew upgrade conn-castle/tap/agent-layer || \
-  curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh | bash
+al update
 al upgrade plan
 al upgrade
 ```
@@ -72,8 +75,7 @@ al upgrade
 ### fish
 
 ```fish
-brew upgrade conn-castle/tap/agent-layer; or \
-  curl -fsSL https://github.com/conn-castle/agent-layer/releases/latest/download/al-install.sh | bash
+al update
 al upgrade plan
 al upgrade
 ```

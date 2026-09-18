@@ -32,7 +32,7 @@ missing local assets and required homepage navigation and branding. Run
 page links and anchors. Inspect desktop and mobile layouts in both color modes
 when changing navigation, layout, or branding.
 
-Pull requests run the production build and its checks. Merging to `main` builds
+Pull requests run the production build and its checks. When `versions.json` exists, merging to `main` builds
 and deploys GitHub Pages.
 
 ## Grok artwork

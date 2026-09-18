@@ -26,14 +26,12 @@ npm run build
 npm run serve
 ```
 
-The build runs `npm test` afterward to check the actual published files for
-missing local assets and required homepage navigation and branding. Run
-`npm test` directly to recheck an existing build. Docusaurus also rejects broken
-page links and anchors. Inspect desktop and mobile layouts in both color modes
-when changing navigation, layout, or branding.
+Docusaurus rejects broken page links and anchors during the production build.
+Inspect desktop and mobile layouts in both color modes when changing navigation,
+layout, or branding.
 
-Pull requests run the production build and its checks. When `versions.json` exists, merging to `main` builds
-and deploys GitHub Pages.
+The existing deployment workflow builds and deploys GitHub Pages on pushes to
+`main` when `versions.json` exists.
 
 ## Grok artwork
 

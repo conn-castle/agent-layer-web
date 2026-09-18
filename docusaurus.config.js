@@ -93,7 +93,7 @@ const faviconHeadTags = [
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Agent Layer",
-  tagline: "One repo-local source of truth for instructions, slash commands, and MCP servers across coding agents.",
+  tagline: "Dispatch agents across providers and sync portable skills, instructions, approvals, and MCP servers from one repo-local source of truth.",
   favicon: "img/favicon/favicon.ico",
 
   url: "https://agent-layer.dev",
@@ -102,7 +102,31 @@ const config = {
   organizationName: "conn-castle",
   projectName: "agent-layer-web",
 
-  headTags: faviconHeadTags,
+  headTags: [
+    ...faviconHeadTags,
+    {
+      tagName: "script",
+      attributes: { type: "application/ld+json" },
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "Agent Layer",
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "macOS, Linux",
+        url: "https://agent-layer.dev",
+        downloadUrl: "https://github.com/conn-castle/agent-layer/releases/latest",
+        softwareHelp: "https://agent-layer.dev/docs",
+        sameAs: "https://github.com/conn-castle/agent-layer",
+        description:
+          "Open-source multi-agent orchestration and configuration for Claude Code, Codex, Grok, Antigravity, Copilot CLI, and VS Code.",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+      }),
+    },
+  ],
 
   scripts: [
     {
@@ -217,7 +241,7 @@ const config = {
           name: "keywords",
           // Google doesn't rely on this heavily, but it helps keep intent explicit for some tooling.
           content:
-            "agent layer, mcp server setup, claude code, openai codex, vibe coding, repo-local instructions, coding agent config, slash commands for coding agents",
+            "agent layer, agent dispatch, multi-agent orchestration, AI agent delegation, Agent Skills, import Agent Skills, MCP server setup, Claude Code, OpenAI Codex, Grok, Antigravity, coding agent config, DeltaSelect, AI agent benchmark",
         },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },
@@ -230,7 +254,14 @@ const config = {
           srcDark: "img/branding/header_wordmark_dark.svg",
         },
         items: [
-          { to: "/docs", label: "Docs", position: "left" },
+          {
+            to: "/docs",
+            label: "Docs",
+            position: "left",
+            activeBaseRegex: "^/docs/?$",
+          },
+          { to: "/docs/agent-dispatch", label: "Dispatch", position: "left" },
+          { to: "/deltaselect", label: "DeltaSelect", position: "left" },
           {
             type: "dropdown",
             to: "/best-practices",
@@ -244,9 +275,6 @@ const config = {
             ],
           },
           { to: "/install", label: "Install", position: "left" },
-          { to: "/security", label: "Security", position: "left" },
-          { to: "/faq", label: "FAQ", position: "left" },
-          { to: "/changelog", label: "Changelog", position: "left" },
           { type: "search", position: "right" },
           { type: "docsVersionDropdown", position: "right" },
           {
@@ -255,31 +283,6 @@ const config = {
             position: "right",
           },
         ],
-      },
-      footer: {
-        style: "dark",
-        links: [
-          {
-            title: "Docs",
-            items: [
-              { label: "Docs", to: "/docs" },
-              { label: "Install", to: "/install" },
-              { label: "Security", to: "/security" },
-              { label: "FAQ", to: "/faq" },
-              { label: "Changelog", to: "/changelog" },
-            ],
-          },
-          {
-            title: "Community",
-            items: [
-              {
-                label: "Issues",
-                href: "https://github.com/conn-castle/agent-layer/issues",
-              },
-            ],
-          },
-        ],
-        copyright: `Copyright © ${new Date().getFullYear()} Conn Castle Studios.`,
       },
       prism: {
         theme: prismThemes.github,

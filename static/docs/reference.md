@@ -17,6 +17,7 @@ Agent Layer is explicit by design. It prefers failing fast over guessing, treats
 - [Environment variables](#environment-variables)
 - [CLI guide](#cli-guide)
 - [Dispatch](#dispatch)
+- [Benchmark runner](#benchmark-runner)
 - [Skill import commands](#skill-import-commands)
 
 ## Configuration
@@ -95,6 +96,7 @@ enabled = true
 # [agents.codex.agent_specific]
 # [agents.codex.agent_specific.features]
 # apps = false              # disable built-in Codex apps (GitHub, Gmail, etc.) to reduce tool surface
+# plugins = false           # disable Codex plugins and plugin-provided skills/tools
 # multi_agent = true
 # prevent_idle_sleep = true
 
@@ -177,17 +179,38 @@ Shared project instructions for Grok live in root `AGENTS.md`. The Claude instru
 
 Each agent has an `enabled` flag and an optional `model` value. Omit `model` and `reasoning_effort` to use the client defaults.
 
+Wizard, Doctor, and Dispatch options share live model discovery for Claude,
+Codex, Grok, Antigravity, and Copilot CLI. Discovery uses the project's normal provider
+configuration without sync or inference, runs concurrently across harnesses,
+and allows ten seconds per lookup. Wizard starts queries for all harnesses with
+a model-discovery adapter before its first configuration screen, waits only when
+a model picker needs its result, and reuses results during navigation. Failed
+discovery displays an error and keeps the client default and custom model choices
+available; it supplies no model suggestions. Scripted answers do not trigger
+discovery; explicit custom values remain accepted. Copilot CLI uses its headless
+SDK protocol to list models without creating a conversation. Doctor queries only
+enabled agents with configured model overrides and warns when discovery fails or
+a configured model is absent from the harness list; absence alone does not prove
+that a custom model or alias is invalid.
+
+Dispatch options obtain fresh lists on each explicit request, with provider
+version checks also concurrent. Launch, sync, and dispatch start/continue do not
+query models. Model defaults are delegated to the harness, never hard-coded by
+Agent Layer. Antigravity suggestions use native model IDs; display names are
+not duplicated as separate choices. Discovery may create the normal repo-local `.agy` and `.grok-config` directories
+when absent; it does not sync configuration or create dispatch runs.
+
 **Reasoning effort**
 
 - Claude supports `reasoning_effort` (`low`, `medium`, `high`, `xhigh`, `max`). Agent Layer passes the value through to Claude Code regardless of the selected model, including when `model` is unset. Claude Code applies it where the active model supports it. `max` is session-only and is passed via the `--effort` CLI flag; it is not written to `settings.json`. Custom values outside the catalog pass through with a sync-time warning so new effort levels work before Agent Layer is updated.
 - Codex supports `reasoning_effort` with its own set of options.
 - Copilot CLI supports `model` but not `reasoning_effort`.
-- Grok supports `model` (`grok-4.6`, `grok-4.5`) and `reasoning_effort` (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`).
+- Grok supports `model` (discovered using `grok models`) and `reasoning_effort` (`none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`).
 
 **Repo-local isolation**
 
 - Codex supports `local_config_dir` (boolean, default `false`). When `true`, `al codex`, Codex dispatch, and `al vscode` set `CODEX_HOME=<repo>/.codex` for per-repo auth, sessions, logs, and runtime state. When absent or false, Agent Layer preserves any inherited `CODEX_HOME`.
-- Claude also supports `local_config_dir` (boolean, default `false`). When `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings and caches isolation. Claude Code stores `/login` credentials in the macOS Keychain on macOS and in `.credentials.json` under `CLAUDE_CONFIG_DIR` on Linux and Windows; other authentication modes may use external credential sources. See [Claude Code authentication](https://code.claude.com/docs/en/authentication).
+- Claude also supports `local_config_dir` (boolean, default `false`). When `true`, `al claude` sets `CLAUDE_CONFIG_DIR` to a repo-local directory for per-repo settings, caches, and `/login` credentials. On macOS, Claude Code keys its Keychain entry to that directory and falls back to `.credentials.json` there if the Keychain write fails; Linux and Windows use `.credentials.json` under the directory. Other authentication modes may use external credential sources. See [Claude Code authentication](https://code.claude.com/docs/en/authentication).
 - For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `agents.claude_vscode` is enabled. Otherwise `al vscode` clears only stale repo-local values and preserves user-defined non-repo values.
 - When Grok is enabled, `al grok`, Grok dispatch, and `al vscode` always set `GROK_HOME=<repo>/.grok-config` so user credentials stay out of the project `.grok/` directory that Agent Layer writes.
 
@@ -227,6 +250,7 @@ Optional fields:
 - `clients` to restrict which clients receive a server (valid values: `antigravity`, `claude`, `vscode`, `codex`, `copilot`, `grok`; note that `claude_vscode` uses the `claude` client)
 - `http_transport` (`sse` or `streamable`) for HTTP servers
 - `headers` for HTTP auth and metadata
+- `auth = "oauth"` for HTTP servers that authenticate through each client's OAuth session (for example, Figma's remote MCP); this tells `al doctor` not to attempt an unauthenticated tool-discovery request
 - `command`, `args`, `env` for stdio servers
 
 When a local command already has useful `--help`, compare MCP against a CLI skill before adding a server. The [CLI Skill Design Guide](/cli-skill-design) explains when MCP is the right interface and when live `--help` is the better place to look up syntax.
@@ -267,6 +291,18 @@ enabled = true
 transport = "http"
 url = "https://example.com/mcp"
 headers = { Authorization = "Bearer ${AL_EXAMPLE_TOKEN}" }
+```
+
+For a server that relies on client-managed OAuth instead of static headers:
+
+```toml
+[[mcp.servers]]
+id = "figma"
+enabled = true
+transport = "http"
+http_transport = "streamable"
+url = "https://mcp.figma.com/mcp"
+auth = "oauth"
 ```
 
 #### Stdio example
@@ -357,8 +393,9 @@ Agent Layer validates `config.toml` on every run. Common validation rules:
 - `enabled` flags must be set for all agents and MCP servers
 - MCP transport must be `http` or `stdio`
 - `http_transport` (when set) must be `sse` or `streamable`
+- `auth` (when set) must be `oauth`
 - HTTP servers cannot set `command` or `args`
-- Stdio servers cannot set `url` or `headers`
+- Stdio servers silently strip `url`, `headers`, and `auth` instead of failing validation
 - `skills.imports[].selectors` must include at least one positive selector, and every selector must be a normalized repository-relative path
 - `skills.imports[].tracking` must be `tracked` or `pinned`; `write_policy` must be `none`, `branch`, or `direct`
 - `write_policy = "branch"` requires an explicit non-primary `push_branch`; other policies must not set one. Configuration validation rejects the conventional primary names; `al skills push` additionally rejects the destination's actual default branch
@@ -439,7 +476,8 @@ The command set is intentionally small. Most of the time you only need one rhyth
 
 | Command | Purpose |
 | --- | --- |
-| `al init` | Initialize a repo with Agent Layer templates and memory files. |
+| `al init` | Initialize the `.agent-layer/` scaffold and optionally open the setup wizard. |
+| `al update` | Update the global release CLI through Homebrew when formula-owned, or through the official installer while preserving the current prefix. |
 | `al upgrade` | Apply template-managed updates and update the repo pin (interactive by default; non-interactive requires `--yes` plus one or more apply flags; line-level diff previews shown by default, configurable with `--diff-lines`). |
 | `al upgrade plan` | Show a dry-run, plain-language categorized upgrade plan with line-level diff previews (configurable with `--diff-lines`). |
 | `al upgrade prefetch` | Download and cache a release binary ahead of time (use `--version X.Y.Z` explicitly on dev builds). |
@@ -452,8 +490,13 @@ The command set is intentionally small. Most of the time you only need one rhyth
 | `al dispatch options` | List dispatchable agents and their allowed overrides. |
 | `al dispatch start` | Start a headless conversation asynchronously and return its handle. |
 | `al dispatch wait <handle>` | Wait up to eight minutes; return `running` if work continues, otherwise return the terminal result. |
+| `al dispatch inspect <handle-or-invocation-id>` | Observe one invocation without waiting. |
+| `al dispatch output <handle-or-invocation-id>` | Read bounded final or partial output. |
 | `al dispatch continue <handle>` | Start another invocation in a terminal conversation. |
 | `al dispatch cancel <handle>` | Cancel a running invocation. |
+| `al benchmark init <selection.json>` | Create a self-contained benchmark study from a DeltaSelect selection. |
+| `al benchmark readiness` | Certify task environments without provider inference. |
+| `al benchmark run <study.toml>` | Validate, run, resume, and report a reproducible DeltaSelect benchmark study. |
 | `al skills add <repository> <selector>... [--yes]` | Import skills from a Git repository and project them. |
 | `al skills remove <repository> <selector> [--yes]` | Remove one configured import selector and recompute the desired set. |
 | `al skills status` | Report local imported-skill state. Local and network-free; `--all` expands it. |
@@ -791,16 +834,19 @@ Agent Dispatch is a fully asynchronous, stateful interface with two ways to use
 the same backend: MCP tools for agents and `al dispatch` commands for humans and scripts.
 The MCP tools are served by the built-in `agent-layer` MCP server, which `al sync`
 projects into every enabled client. It exposes `dispatch_options`,
-`dispatch_start`, `dispatch_wait`, `dispatch_continue`, and `dispatch_cancel`.
+`dispatch_start`, `dispatch_wait`, `dispatch_continue`, `dispatch_cancel`,
+`dispatch_inspect`, and `dispatch_output`.
 Valid dispatch targets are `codex`, `claude`, `antigravity`, and `grok`; VS Code
 and Copilot CLI can call the MCP tools but are not dispatch targets.
 
 ```bash
 al dispatch options
 al dispatch start --agent codex --prompt-file prompt.md
-al dispatch wait <handle>
+al dispatch wait <handle-or-invocation-id>
+al dispatch inspect <handle-or-invocation-id>
+al dispatch output <handle-or-invocation-id> --artifact final_answer
 al dispatch continue <handle> --prompt "Review the revision."
-al dispatch cancel <handle>
+al dispatch cancel <handle-or-invocation-id>
 ```
 
 `options` reports available agents, configured defaults, and supported model
@@ -819,6 +865,24 @@ The agent-facing interface contains read-only `options` and `wait`, plus
 `start`, `continue`, and `cancel`. Parallel work uses independent conversation
 handles rather than a fanout resource. See [Agent Dispatch](./agent-dispatch)
 for the complete lifecycle, MCP interface, timeout behavior, and configuration.
+
+### Benchmark runner
+
+DeltaSelect exports a content-addressed `selection.json`. Use the CLI scaffolder to create a self-contained study with a benchmark-safe provider config and snapshots of the current instructions and projected skills. Then validate the complete study before authorizing provider calls:
+
+```bash
+al benchmark init selection.json --directory benchmark-study
+al benchmark run benchmark-study/study.toml --dry-run
+al benchmark run benchmark-study/study.toml
+```
+
+The study manifest is the reproducibility boundary. Its `selection` points to the exported DeltaSelect JSON, and each `[[experiments]]` entry declares a name, model, reasoning level, and any treatment inputs such as config, instructions, or skills. Every referenced path must be relative to and remain inside the directory containing `study.toml`.
+
+`--dry-run` validates the selection and study, computes cached and missing cells, and performs dependency, environment, and provider-authentication preflight without inference calls. A normal run authorizes paid provider calls for all missing cells. Completed cells are immutable and reusable, so an interrupted study resumes instead of rerunning finished work.
+
+The runner writes content-addressed evidence plus `report.json` and `report.html` under `.agent-layer/state/benchmarks/deepswe/studies/`. Reports compare score, observed cost, workflow conformance, and statistical evidence for the fixed selected task set; they do not claim that the subset represents every task in DeepSWE.
+
+Use `al benchmark readiness --study benchmark-study/study.toml` when you want to isolate Docker and task-environment problems before provider authentication. Use `--task-concurrency 1..8` to control parallel cells. The repeatable `--task <id>` flag scopes one invocation to selected tasks without changing study membership or identity. Run `al benchmark <command> --help` for exact flags and use [DeltaSelect](/deltaselect) to create the selection.
 
 ### Skill import commands
 

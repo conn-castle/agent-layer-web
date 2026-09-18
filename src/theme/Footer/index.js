@@ -1,6 +1,10 @@
 import React from 'react';
 import Link from '@docusaurus/Link';
 
+/**
+ * Render website-owned navigation independently of CLI-published page content.
+ * @returns {React.JSX.Element} The responsive site footer.
+ */
 function Footer() {
   return (
     <footer className="custom-footer">
@@ -26,9 +30,10 @@ function Footer() {
             <ul className="footer-links-list">
               <li><Link to="/">Home</Link></li>
               <li><Link to="/docs">Docs</Link></li>
+              <li><Link to="/docs/agent-dispatch">Agent Dispatch</Link></li>
+              <li><Link to="/docs/skill-imports">Skill Imports</Link></li>
+              <li><Link to="/deltaselect">DeltaSelect</Link></li>
               <li><Link to="/install">Install</Link></li>
-              <li><Link to="/security">Security</Link></li>
-              <li><Link to="/faq">FAQ</Link></li>
             </ul>
           </div>
 
@@ -37,6 +42,8 @@ function Footer() {
             <h3 className="footer-column-title">Resources</h3>
             <ul className="footer-links-list">
               <li><Link to="/changelog">Changelog</Link></li>
+              <li><Link to="/security">Security</Link></li>
+              <li><Link to="/faq">FAQ</Link></li>
               <li><a href="https://github.com/conn-castle/agent-layer" target="_blank" rel="noopener noreferrer">GitHub</a></li>
               <li><a href="https://github.com/conn-castle/agent-layer/issues" target="_blank" rel="noopener noreferrer">Issues</a></li>
             </ul>

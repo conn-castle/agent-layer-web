@@ -4,9 +4,10 @@ This repository owns the Docusaurus site configuration, theme components, CSS,
 branding assets, and deployment workflow for https://agent-layer.dev.
 
 The `conn-castle/agent-layer` release publisher owns `src/pages`, `docs`, versioned
-documentation, `CHANGELOG.md`, `redirect-manifest.json`, `static/deepswe-planner`,
+documentation, `versions.json`, `CHANGELOG.md`, `redirect-manifest.json`, `static/deepswe-planner`,
 `static/llms.txt`, and `static/docs`. Make lasting content changes in that
-repository's `site/` sources. For an immediate website correction, update the
+repository's `site/` sources; Best Practices guides are generated from its
+`docs/` sources. For an immediate website correction, update the
 canonical source and this published copy together so the next release preserves
 the fix.
 

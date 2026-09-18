@@ -1,6 +1,10 @@
 import React from 'react';
 import Link from '@docusaurus/Link';
 
+/**
+ * Render website-owned navigation independently of CLI-published page content.
+ * @returns {React.JSX.Element} The responsive site footer.
+ */
 function Footer() {
   return (
     <footer className="custom-footer">

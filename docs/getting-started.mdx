@@ -32,7 +32,7 @@ Quick start is the shortest path to a working agent. You can always refine confi
 ### Prerequisites
 
 - Install the Agent Layer CLI (`al`)
-- Install the target client (Antigravity `agy`, Claude, Codex, Copilot CLI, Grok Build CLI `grok`, VS Code)
+- Install the target client (Antigravity `agy`, Claude, Codex, Copilot CLI, Grok Build CLI `grok`, Muse Code `muse`, VS Code)
 
 Agent Layer does not install client CLIs for you. If you already have `al` installed, skip to step 2.
 
@@ -72,7 +72,7 @@ For detailed behavior, see [Init](./reference#init), [Upgrade](./reference#upgra
 al codex
 ```
 
-Any enabled client command (`agy`, `claude`, `codex`, `copilot`, `grok`, or `vscode`) will:
+Any enabled client command (`agy`, `claude`, `codex`, `copilot`, `grok`, `muse`, or `vscode`) will:
 
 1. read `.agent-layer/`
 2. sync client configs
@@ -226,7 +226,7 @@ If you prefer to launch VS Code without the repo-local launcher, see the Codex a
 
 ### Safe to delete
 
-You can delete generated outputs at any time. Running `al sync` or `al <client>` will recreate them from `.agent-layer/`. The exceptions are the shared-state files `al sync` patches in place — `.codex/config.toml` and `.agy/antigravity-cli/settings.json` — which can hold native values (for Antigravity, workspace approval or trust), so keep them gitignored but do not delete them as part of cleanup. For Antigravity, Agent Layer patches only its managed model, `permissions.allow`, and `agent_specific` paths; its Antigravity MCP output remains disposable.
+You can delete generated outputs at any time. Running `al sync` or `al <client>` will recreate them from `.agent-layer/`. The exceptions are shared native state: `.codex/config.toml` and `.agy/antigravity-cli/settings.json` are patched in place and can contain preserved native values; historical `.muse-config/` and `.muse-data/` can contain credentials, settings, and non-reproducible sessions. Keep these paths gitignored, but do not delete them as part of cleanup. Agent Layer-managed MCP output remains disposable.
 
 If you keep your own files under `.vscode/`, delete only the Agent Layer-managed files (`.vscode/mcp.json` and the managed block in `.vscode/settings.json`). Agent Layer also projects VS Code/GitHub Copilot skills through `.agents/skills/`.
 
@@ -252,7 +252,7 @@ Do not commit:
 - `.agent-layer/.env` (secrets)
 - `.agent-layer/state/managed-baseline.json` (machine-managed baseline state)
 - `.agent-layer/tmp/` (agent-only artifacts)
-- generated client outputs like `.agents/skills/`, `.agy/`, `.antigravitycli/`, `.claude/settings.json`, `.claude/skills/`, `.claude/CLAUDE.md`, `.mcp.json`, `.codex/`, `.copilot/`, `.grok/`, `.grok-config/`, `.vscode/mcp.json`, `.vscode/settings.json`, `.github/copilot-instructions.md`, `AGENTS.md`
+- generated client outputs like `.agents/skills/`, `.agy/`, `.antigravitycli/`, `.claude/settings.json`, `.claude/skills/`, `.claude/CLAUDE.md`, `.mcp.json`, `.codex/`, `.copilot/`, `.grok/`, `.grok-config/`, `.muse-config/`, `.muse-data/`, `.vscode/mcp.json`, `.vscode/settings.json`, `.github/copilot-instructions.md`, `AGENTS.md`
 
 ## CLI command map
 
@@ -282,6 +282,7 @@ If you only remember one pattern: `al <client>` syncs first, then launches.
 | `al vscode` | Sync and launch VS Code. | [Launch a client](./reference#launch-a-client) |
 | `al copilot` | Sync and launch Copilot CLI. | [Launch a client](./reference#launch-a-client) |
 | `al grok` | Sync and launch Grok. | [Launch a client](./reference#launch-a-client) |
+| `al muse` | Sync and launch Muse Code. | [Launch a client](./reference#launch-a-client) |
 | `al dispatch` | Start, wait for, continue, or cancel a headless provider conversation. | [Agent Dispatch](./agent-dispatch) |
 | `al benchmark` | Create, preflight, run, and resume DeltaSelect benchmark studies. | [Benchmark runner](./reference#benchmark-runner) |
 | `al skills` | Import, inspect, update, reconcile, and publish Git-backed Agent Skills. | [Skill imports](./skill-imports) |

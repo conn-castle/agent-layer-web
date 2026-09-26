@@ -1080,6 +1080,46 @@
     "to": "/docs/upgrades"
   },
   {
+    "from": "/docs/0.19.0/",
+    "to": "/docs/"
+  },
+  {
+    "from": "/docs/0.19.0/agent-dispatch",
+    "to": "/docs/agent-dispatch"
+  },
+  {
+    "from": "/docs/0.19.0/concepts",
+    "to": "/docs/concepts"
+  },
+  {
+    "from": "/docs/0.19.0/getting-started",
+    "to": "/docs/getting-started"
+  },
+  {
+    "from": "/docs/0.19.0/reference",
+    "to": "/docs/reference"
+  },
+  {
+    "from": "/docs/0.19.0/skills",
+    "to": "/docs/skills"
+  },
+  {
+    "from": "/docs/0.19.0/skills-approach",
+    "to": "/docs/skills-approach"
+  },
+  {
+    "from": "/docs/0.19.0/troubleshooting",
+    "to": "/docs/troubleshooting"
+  },
+  {
+    "from": "/docs/0.19.0/upgrade-checklist",
+    "to": "/docs/upgrade-checklist"
+  },
+  {
+    "from": "/docs/0.19.0/upgrades",
+    "to": "/docs/upgrades"
+  },
+  {
     "from": "/docs/0.21.0/",
     "to": "/docs/"
   },

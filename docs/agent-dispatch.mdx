@@ -153,6 +153,19 @@ al dispatch wait abc123
 # If the state is still running, wait again with the same handle.
 ```
 
+### Reserve a name before starting
+
+Programmatic callers can reserve a conversation name before launching an agent. Start it once, then use `wait` and `continue` for later steps. Stop retrying that name before the configured retention period ends. These commands are CLI only; agents using MCP use `dispatch_start`.
+
+```bash
+al dispatch reserve
+# {"handle":"small-blue-relay","invocation_id":"...","state":"reserved","termination_confirmed":false,"reservation_expires_at":"..."}
+
+al dispatch start --reservation <handle> --agent codex --prompt "Summarize docs/AGENT-DISPATCH.md"
+```
+
+`reserve` creates the invocation with an Agent Layer generated three-word handle and ID and launches nothing. Pass the returned handle to `start --reservation`. The first start claims and launches it. Every later start of that retained reservation errors with guidance to inspect the invocation and continue only when available; it never launches again, even after the conversation is continued. A crash after claiming can leave a failed invocation without launching. `inspect`, `wait`, `output`, and `cancel` accept the reserved handle or ID. A bounded `wait` that ends before the reservation starts returns `reserved` instead of `running`. Cancelling an unstarted reservation retires it without launching, and `continue` rejects it. Unstarted reservations expire after `dispatch.reservation_expiry_days` (default 7). `start --reservation` exits 80 for an unknown reservation, 81 for an expired one, 82 when it already started, and 83 for a cancelled one. After retention removes a reservation, its name can be reused, so callers must stop retrying it. See [Reservations](https://github.com/conn-castle/agent-layer/blob/main/docs/AGENT-DISPATCH.md#reservations) for the full contract.
+
 `wait` is bounded rather than “wait until finished.” The CLI returns in at most eight minutes, and the MCP tool returns after `dispatch.mcp_wait_timeout_minutes` (30 by default). If the state is `running`, call `wait` again. Waiting on an already-terminal invocation returns immediately.
 
 ## Conversation lifecycle
@@ -162,6 +175,8 @@ An invocation has exactly one public state:
 ```text
 running -> completed | failed | cancelled
 ```
+
+An invocation created by `al dispatch reserve` starts in `reserved`, then moves to `running` when `start --reservation` launches it, or to `cancelled` when it is cancelled or expires first. A reservation that never started cannot be continued.
 
 Terminal states are immutable. Continuing a terminal conversation creates a new invocation in `running`; it does not rewrite the previous invocation.
 
@@ -238,18 +253,20 @@ Output is UTF-8 text capped at 65,536 bytes and sets `truncated` when more captu
 
 ## Configuration
 
-The optional `[dispatch]` section controls nesting, retention, and MCP timeouts:
+The optional `[dispatch]` section controls nesting, retention, reservation expiry, and MCP timeouts:
 
 ```toml
 [dispatch]
 max_depth = 3
 session_retention_days = 30
+reservation_expiry_days = 7
 mcp_wait_timeout_minutes = 30
 mcp_tool_timeout_minutes = 40
 ```
 
 - `max_depth` limits nested dispatch and defaults to 3.
 - `session_retention_days` bounds inactive conversation mappings and confirmed terminal evidence. It defaults to 30. Unconfirmed execution evidence is never expired.
+- `reservation_expiry_days` bounds how long an unstarted `al dispatch reserve` reservation stays startable. It defaults to 7.
 - `mcp_wait_timeout_minutes` controls how long one `dispatch_wait` call blocks before returning `running`. It defaults to 30.
 - `mcp_tool_timeout_minutes` is the server-side hard limit for every dispatch MCP tool call. It defaults to 40 and must be greater than the wait timeout.
 

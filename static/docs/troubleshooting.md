@@ -85,7 +85,7 @@ Grok uses the repo-local `.grok-config/` directory as `GROK_HOME` for `al grok`,
 
 Muse uses native user storage; Agent Layer leaves `HOME` and XDG variables unchanged. If upgrading from repo-local Muse storage, sign in with `muse login` if native storage is not authenticated. Historical `.muse-config/` and `.muse-data/` are retained, but sessions are not migrated. Start a new dispatch if an old Muse session cannot be resumed. Project MCP is generated in private, gitignored `.mcp.json`, shared with Claude.
 
-If sync reports that a shared MCP server excludes VS Code, both `agents.muse.enabled` and `agents.vscode.enabled` are enabled and the server's `clients` filter cannot be enforced by VS Code's root-file importer. Add `vscode` to that server's `clients` (or omit the list to share with all clients), or disable one of those two integrations. Enabling `claude_vscode` alone does not trigger this check.
+If sync reports that an MCP server in the generated root `.mcp.json` excludes VS Code, `agents.vscode.enabled` is true and the server is selected for Claude (with `claude` or `claude_vscode` enabled) or Muse (with Muse enabled), so VS Code's root-file importer cannot enforce its `clients` filter. Add `vscode` to that server's `clients` (or omit the list to share with all clients), or disable every enabled Muse, Claude, or Claude VS Code integration selecting the server.
 
 ### Grok setup and diagnostics
 
@@ -277,6 +277,6 @@ If you run `al doctor` with no MCP servers enabled, it will still validate confi
 
 Muse 1.3.0 can return an empty catalog from its native MSP `model/list` endpoint even when a model is available in the interactive client. Agent Layer reports this limitation; choose the client default or enter your model ID explicitly. An empty catalog does not establish that authentication failed.
 
-Muse reads `AGENTS.md`; the generated `.claude/CLAUDE.md` symlink shares that file with Claude without a duplicate-instruction warning. If `.claude` itself is a user-managed symlink, sync retains a regular instruction copy and Muse may warn that it is ignored. Keep that copy for Claude. Muse can also report shadow diagnostics for the real `.agents/skills/` and `.claude/skills/` trees while selecting each skill once. These diagnostics do not require moving Claude instructions or replacing skill directories with symlinks.
+Muse reads `AGENTS.md`; the generated `.claude/CLAUDE.md` symlink shares that file with Claude without a duplicate-instruction warning. If `.claude` itself is a user-managed symlink, sync retains a regular instruction copy and Muse may warn that it is ignored. Keep that copy for Claude. If Muse reports shadowed skills from `.claude/skills/`, run `al sync` with a version that generates shared skill links. Sync replaces duplicate Claude skill copies with links to `.agents/skills/`, keeping each skill available to both clients without shadow diagnostics.
 
 Grok may print “not authenticated” alongside fallback models. Agent Layer treats that diagnostic as a discovery error even when models are returned. Sign in using `al grok`, then retry model discovery. An empty catalog also reports a discovery failure.

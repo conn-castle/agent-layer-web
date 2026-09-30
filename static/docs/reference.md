@@ -188,7 +188,7 @@ Grok authentication and sessions are isolated per repository because managed lau
 
 Shared project instructions for Grok live in root `AGENTS.md`. The Claude instruction shim is `.claude/CLAUDE.md`. When Grok is enabled, sync sets `[compat.claude] agents = false` in repo-local `.grok-config/config.toml`, and Grok launch, dispatch, and `al vscode` set `GROK_CLAUDE_AGENTS_ENABLED=false`, so Grok skips legacy Claude-named instruction files. A leftover hand-authored root `CLAUDE.md` can still dual-load in Grok. Grok also discovers Claude-compatible hooks; Agent Layer's Claude chime handler silently ignores Grok's camelCase hook envelope so the dedicated Grok handler is the only one that chimes.
 
-Claude instructions remain at `.claude/CLAUDE.md`, generated as a relative symlink to `../AGENTS.md`. Claude and Muse each load the shared guidance once without a duplicate-instruction warning. If `.claude` itself is a user-managed symlink, sync preserves the regular-file copy because the relative target would resolve outside the project; Muse may still report the precedence warning in that layout. Both `.agents/skills/` and `.claude/skills/` remain real generated trees. Native Muse selects each skill once and can report shadow diagnostics for the duplicate physical source. Sync removes only the obsolete `.claude/rules/agent-layer.md` carrying Agent Layer's generated header, preserving handwritten rules and symlinked rules directories.
+Claude instructions remain at `.claude/CLAUDE.md`, generated as a relative symlink to `../AGENTS.md`. Claude and Muse each load the shared guidance once without a duplicate-instruction warning. If `.claude` itself is a user-managed symlink, sync preserves the regular-file copy because the relative target would resolve outside the project; Muse may still report the precedence warning in that layout. Both skill roots remain real directories, but each Claude skill directory links to its shared `.agents/skills/` counterpart when both projections are enabled. Muse selects each shared skill once without shadow diagnostics. Claude-only configurations receive standalone copies. Sync removes only the obsolete `.claude/rules/agent-layer.md` carrying Agent Layer's generated header, preserving handwritten rules and symlinked rules directories.
 
 **Muse Code 1.3.0**
 
@@ -196,7 +196,7 @@ Muse is optional and disabled when `[agents.muse]` is absent. Agent Layer does n
 
 Muse and Claude share `<repo>/.mcp.json`. Sync projects the union of their selected servers: `enabled: false` excludes Claude-only entries from Muse, while `.claude/settings.json` lists Muse-only entries in `disabledMcpjsonServers`. Existing explicit Claude exclusions are preserved. These filters apply to enabled Agent Layer integrations; an unconfigured client launched directly may also read the shared file. All HTTP entries in the shared file use `streamable-http`, which both clients accept, including Claude-only entries disabled for Muse. Muse rejects the spelling `http` even on disabled entries. Muse-selected SSE servers fail sync with a remedy.
 
-When both `agents.muse.enabled` and `agents.vscode.enabled` are true, every enabled server in the shared `.mcp.json` must also permit the `vscode` client. VS Code imports that file and ignores its `enabled` flags. Configuration validation rejects conflicting `clients` filters before writing generated output; include `vscode` in the server's `clients`, omit `clients` to share with all clients, or disable one of those integrations. This check does not activate for `claude_vscode` alone or when either Muse or VS Code is disabled.
+When `agents.vscode.enabled` is true, every enabled server in the generated root `.mcp.json` must also permit the `vscode` client. That file holds Claude-selected servers when `claude` or `claude_vscode` is enabled and Muse-selected servers when Muse is enabled. VS Code imports that file and ignores its `enabled` flags. Configuration validation rejects conflicting `clients` filters before writing generated output; include `vscode` in the server's `clients`, omit `clients` to share with all clients, or disable every enabled Muse, Claude, or Claude VS Code integration selecting the server. This check does not activate when VS Code is disabled.
 
 When Muse is enabled, `.mcp.json` is written with owner-only permissions (`0600`) and Muse-selected URLs, headers, and environment values are resolved. Muse expands stdio environment placeholders but does not expand HTTP header placeholders. Keep this generated file gitignored; it can contain credentials. In a Git worktree, sync refuses to write it unless it is both untracked and ignored. When neither Claude nor Muse is enabled, sync removes only the Agent Layer-generated file. Without Muse, Claude retains its placeholder-based configuration. CI runs pinned native Muse on Linux and macOS against local fixtures. It checks project stdio and HTTP tool calls, resolved credentials, client exclusions, and coexistence with native user MCP configuration, with both default and custom XDG paths. These tests require no account credentials or paid model calls.
 
@@ -734,13 +734,13 @@ Use it when you want to get to a safe, working configuration quickly, or when yo
 
 Instruction and memory seeding creates missing files only and does not refresh existing ones. Catalog skill removal deletes the matching skill directory after preview confirmation. Use `al upgrade` for managed instruction and workflow-skill template updates.
 
-The wizard rewrites `config.toml` in a fixed preferred section order and creates backups (`.bak`) before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files.
+The wizard rewrites `config.toml` in a fixed preferred section order and creates backups in `.agent-layer/state/wizard-backups/` before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files. After a successful upgrade and sync, `al upgrade` moves older backups from `.agent-layer/` into this directory, retaining conflicts with numbered `.legacy-N` suffixes.
 
 Additional modes:
 
 - `al wizard --profile /path/to/profile.toml`: preview-only profile rewrite diff
 - `al wizard --profile /path/to/profile.toml --yes`: apply profile and run sync
-- `al wizard --cleanup-backups`: delete `.agent-layer/config.toml.bak` and `.agent-layer/.env.bak`
+- `al wizard --cleanup-backups`: delete wizard backups from `.agent-layer/state/wizard-backups/`, including migrated `.legacy-N` files, and any backups remaining at the older `.agent-layer/` paths
 
 **Navigation**
 
@@ -817,7 +817,7 @@ Common outputs include:
 - `.agy/antigravity-cli/mcp_config.json`, `.claude/settings.json`, `.claude/skills/`, `.mcp.json`
 - `.agy/antigravity-cli/settings.json` (shared state patched at Agent Layer-managed model, `permissions.allow`, and `agent_specific` paths)
 - `.codex/` (generated config and rules)
-- `.copilot/mcp-config.json`
+- `.copilot/mcp-config.json` (Copilot CLI does not discover this file natively; `al copilot` loads it with `--additional-mcp-config`)
 - `.grok/config.toml`
 - `.grok/hooks/agent-layer-chime.json` when `notifications.chime` is enabled
 - `.mcp.json` also serves Muse when enabled; Muse runtime storage remains native
@@ -850,7 +850,15 @@ These commands read `.agent-layer/`, regenerate client outputs, and then launch 
 
 This is the default workflow for day-to-day use: you get a clean regenerate and a launch in one command, which keeps behavior consistent even when you switch tools.
 
-`al <client>` forwards any extra arguments to the underlying client. If you need to use Agent Layer flags as well, place `--` before the client arguments. `--no-sync` is supported by `al vscode` and `al muse` and must appear before `--`. For an explicit false value, use `--no-sync=false` (space-separated values like `--no-sync false` are not supported and will be passed through).
+`al <client>` forwards any extra arguments to the underlying client.
+
+Explicit client options replace matching Agent Layer-generated command-line defaults, so `al grok --model MODEL` sends only your model flag. This also applies to reasoning effort and other generated options, including `--option=value` syntax and supported native aliases. Known repeatable list options remain additive: Copilot’s `--additional-mcp-config` and `--disable-mcp-server` keep distinct generated entries and omit generated entries whose exact value you supply. Repeatable options are explicitly identified per client, not inferred from repeated use. Caller-supplied arguments (including repeated options) remain unchanged.
+
+Replacement matches the same option or a supported alias; it does not resolve conflicts between differently named approval flags (for example, `--yolo` and `--approval-mode`). The merge is not a full native argument parser: for literal option values that look like flags, use the native `--option=value` form (for example, `--append-system-prompt=--dangerously-skip-permissions`) so the value is not mistaken for an override.
+
+Codex and Antigravity model defaults live in generated configuration files and are overridden by their native CLI options.
+
+If you need to use Agent Layer flags as well, place `--` before the client arguments. `--no-sync` is supported by `al vscode` and `al muse` and must appear before `--`. For an explicit false value, use `--no-sync=false` (space-separated values like `--no-sync false` are not supported and will be passed through).
 
 `al vscode` preflight now fails fast with clear guidance when:
 

@@ -25,8 +25,10 @@ posthog.init('phc_BHtwwAqkFjpvoWoJ2KwLTeRK9W9k5SWLw8ENhUZW2web', {
     // Clean the URL only after the page loads, so it doesn't change
     // mid-hydration and trigger a React hydration error.
     var cleanUrl = function () {
-      url.searchParams.delete('owner');
-      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+      var current = new URL(window.location.href);
+      if (!current.searchParams.has('owner')) return;
+      current.searchParams.delete('owner');
+      window.history.replaceState(window.history.state, '', current.pathname + current.search + current.hash);
     };
     if (document.readyState === 'complete') setTimeout(cleanUrl, 0);
     else window.addEventListener('load', cleanUrl);

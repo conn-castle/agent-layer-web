@@ -17,12 +17,22 @@ posthog.init('phc_BHtwwAqkFjpvoWoJ2KwLTeRK9W9k5SWLw8ENhUZW2web', {
   disable_surveys: true,
   capture_dead_clicks: false,
   capture_exceptions: false,
+  // Flags are unused, and flag requests would carry the unsanitized landing URL.
+  advanced_disable_flags: true,
   loaded: function (ph) {
     var url = new URL(window.location.href);
     if (url.searchParams.get('owner') !== '1') return;
     ph.setInternalOrTestUser();
     ph.register({ is_owner: true });
-    url.searchParams.delete('owner');
-    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    // Clean the URL only after the page loads, so it doesn't change
+    // mid-hydration and trigger a React hydration error.
+    var cleanUrl = function () {
+      var current = new URL(window.location.href);
+      if (!current.searchParams.has('owner')) return;
+      current.searchParams.delete('owner');
+      window.history.replaceState(window.history.state, '', current.pathname + current.search + current.hash);
+    };
+    if (document.readyState === 'complete') setTimeout(cleanUrl, 0);
+    else window.addEventListener('load', cleanUrl);
   },
 });

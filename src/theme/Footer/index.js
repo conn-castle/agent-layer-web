@@ -46,6 +46,7 @@ function Footer() {
               <li><Link to="/faq">FAQ</Link></li>
               <li><a href="https://github.com/conn-castle/agent-layer" target="_blank" rel="noopener noreferrer">GitHub</a></li>
               <li><a href="https://github.com/conn-castle/agent-layer/issues" target="_blank" rel="noopener noreferrer">Issues</a></li>
+              <li><a href="/privacy.html">Privacy</a></li>
             </ul>
           </div>
 

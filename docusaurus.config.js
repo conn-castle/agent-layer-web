@@ -133,6 +133,10 @@ const config = {
       src: `${BASE_URL}js/hide-copy-button-home.js`,
       defer: true,
     },
+    {
+      src: `${BASE_URL}js/lantern.js`,
+      defer: true,
+    },
   ],
 
   onBrokenLinks: "throw",

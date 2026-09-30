@@ -22,7 +22,13 @@ posthog.init('phc_BHtwwAqkFjpvoWoJ2KwLTeRK9W9k5SWLw8ENhUZW2web', {
     if (url.searchParams.get('owner') !== '1') return;
     ph.setInternalOrTestUser();
     ph.register({ is_owner: true });
-    url.searchParams.delete('owner');
-    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    // Clean the URL only after the page loads, so it doesn't change
+    // mid-hydration and trigger a React hydration error.
+    var cleanUrl = function () {
+      url.searchParams.delete('owner');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    };
+    if (document.readyState === 'complete') setTimeout(cleanUrl, 0);
+    else window.addEventListener('load', cleanUrl);
   },
 });

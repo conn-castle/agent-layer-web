@@ -17,6 +17,8 @@ posthog.init('phc_BHtwwAqkFjpvoWoJ2KwLTeRK9W9k5SWLw8ENhUZW2web', {
   disable_surveys: true,
   capture_dead_clicks: false,
   capture_exceptions: false,
+  // Flags are unused, and flag requests would carry the unsanitized landing URL.
+  advanced_disable_flags: true,
   loaded: function (ph) {
     var url = new URL(window.location.href);
     if (url.searchParams.get('owner') !== '1') return;

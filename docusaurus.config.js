@@ -2,9 +2,7 @@
 import fs from "node:fs";
 import { themes as prismThemes } from "prism-react-renderer";
 
-const isProd = process.env.NODE_ENV === "production";
 const BASE_URL = "/";
-const GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || "G-BF2NZXRW05";
 const REDIRECT_MANIFEST_URL = new URL("./redirect-manifest.json", import.meta.url);
 
 function readRedirectManifest() {
@@ -201,39 +199,6 @@ const config = {
         enabledActions: ["copy", "view"],
       },
     ],
-    ...(isProd
-      ? [
-          // IMPORTANT: plugin order is intentional.
-          // consentDefaultsPlugin MUST run before plugin-google-gtag so consent
-          // defaults are queued before GA initializes.
-          // We use standalone plugin registration (instead of preset gtag option)
-          // to keep this order explicit and visible.
-          function consentDefaultsPlugin() {
-            return {
-              name: "consent-defaults-plugin",
-              injectHtmlTags() {
-                return {
-                  headTags: [
-                    {
-                      tagName: "script",
-                      attributes: {
-                        src: `${BASE_URL}js/consent-defaults.js`,
-                      },
-                    },
-                  ],
-                };
-              },
-            };
-          },
-          [
-            "@docusaurus/plugin-google-gtag",
-            {
-              trackingID: GA4_MEASUREMENT_ID,
-              anonymizeIP: true,
-            },
-          ],
-        ]
-      : []),
   ],
 
   themeConfig:

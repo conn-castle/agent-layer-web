@@ -3,6 +3,32 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## v1.0.0 - 2026-10-12
+
+### Changed
+- Git-backed instructions now share the skill import lifecycle, with one exact Markdown file and required numeric order per imported/local block. Wizard Rules/Memory import external content; adoption preserves local bytes, permissions and order. Software upgrades establish legacy ordering offline and preserve instruction bodies.
+- General development and tool skills now come from `nicholasjconn/skills` through ordinary Git imports. The wizard keeps the seven-skill development selection and separate tool selections; `dispatch-agent`, `skill-sync`, `instruction-sync`, and `benchmark` remain bundled. CLI upgrades do not install or refresh the external skill content.
+- **Breaking/manual:** Existing local copies of the ten moved skills remain intact during upgrades, including deletion-enabled upgrades. Use the wizard's explicit legacy adoption preview to move them into the imported tier. Adoption preserves the complete local tree and executable bits, records fetched upstream provenance, and carries differing local content as modified. Resolve configured selector coverage or duplicate copies explicitly with `al skills` commands before adoption. Later pulls merge upstream changes with local customizations.
+- With active moved imports, supported CLI selection and downgrade refuse versions below `1.0.0`; rollback refuses snapshots that would recreate converted local slots or pin an older CLI. Recovery evidence and imported modifications are preserved. An older executable invoked directly cannot enforce this safeguard and cannot read adoption journals.
+- Explicit benchmark setup fetches and freezes the seven external development skills with Git commit, selectors, and canonical tree hashes. Later study runs remain offline and use the frozen snapshot; historical studies without this provenance remain compatible.
+
+### Fixed
+- Installer local asset directories support spaces, Unicode, and URL-special characters without requiring curl; checksum verification and atomic replacement remain intact.
+- Instruction reset and pull help now match the shared current-upstream behavior and conflict workspace path; the reference documentation is consistent.
+- Cancellation stops sync lock waits and interactive upgrades, rolling back interrupted upgrade transactions. Late dispatch cancellation preserves a live worker's result publication; stopped provider groups are accepted without signalling only after submitters are gone.
+- Wizard config/env writes now share the project lock with imports and sync. Profile application refuses source ownership mismatches before replacing config, so a concurrent import cannot silently erase a successful wizard update. Profile previews remain read-only.
+- Upgrade planning, baseline publication, and snapshot creation, retention, listing, and rollback reject linked or non-directory state storage before accessing it or changing managed project files.
+- Agent Dispatch distinguishes an exited provider with closed output pipes from slow local persistence. Successful output still undergoes full validation, while live providers retain the same shutdown deadline even when persistence is blocked.
+- Migration-capable version handoffs reach the target reader without first consuming its recovery journal. Import recovery rejects colliding intent, trailing JSON, linked journals, and unsafe backup node types before changing live state. Wizard removal previews identify missing or conflicted configured siblings that ordinary selector reconciliation may materialize or block.
+- Historical flat skills with valid frontmatter that lacks `name` receive their original filename as the name during migration. Explicit or uncertain metadata, existing content, and file modes remain preserved.
+
+### Security
+- Release builds use Go 1.27.2 and updated Go dependencies, addressing the standard-library advisories found during v1.0.0 preflight.
+
+### Development
+- Release tagging now requires exact-commit Linux/macOS CI, catalog certification, and a signed nonpublishing rehearsal for the intended version. The shared release workflow supports rehearsals; existing Claude-refresh and filesystem fixtures handle macOS path aliases and case-insensitive storage.
+- Source builds require Go 1.27.0 or newer. Updated the pinned linter, CI/release actions, Node LTS, uv, Pier, and the embedded Plotly chart library; Dependabot checks Go modules and GitHub Actions weekly.
+
 ## v0.24.3 - 2026-10-07
 
 ### Fixed

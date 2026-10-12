@@ -421,7 +421,7 @@ Warnings are used by:
 
 Warning output now includes source and severity labels so operators can distinguish internal/config issues from network or external-dependency issues.
 
-Set `version_update_on_sync = true` to opt in to update warnings during `al sync` and `al <client>`; omit it or set it to `false` to keep update warnings limited to `al init`, `al doctor`, and `al wizard`.
+Set `version_update_on_sync = true` to opt in to update warnings during `al sync` and `al <client>`; omit it or set it to `false` to keep update warnings limited to `al init`, `al doctor`, and `al wizard`. Client launch uses cached release information and refreshes missing or day-old information in a silent background helper with a two-second network deadline. While the cache stays stale, launches share one refresh attempt every five minutes so repeated launches cannot each spend GitHub rate-limit budget. A first launch with no cache proceeds without an update notice; a later launch can use the refreshed information. Explicit checks such as `al doctor` and `al sync` still fetch release information. The cache is stored under `AL_CACHE_DIR` when set, or `<user-cache>/agent-layer/` otherwise.
 
 Set `noise_mode` to control warning verbosity:
 
@@ -732,6 +732,28 @@ Use it before `al upgrade` to understand what would change:
 
 `al upgrade plan` supports plain-language text output only.
 
+### Git-backed instructions
+
+`al instructions` exposes `add`, `remove`, `status`, `diff`, `pull`, `reset`, `resolve`, and `push`, with the same ref, tracking, write and push fields/defaults as `al skills`. Add selects exactly one regular Markdown file and requires `--order`, a nonnegative integer (zero is valid). Wildcards and exclusions are unsupported. Orders and filenames must be unique across both instruction tiers; gaps are valid. Sync and status never fetch.
+
+```toml
+[[instructions.imports]]
+repository = "https://github.com/nicholasjconn/skills.git"
+selectors = ["instructions/rules.md"]
+order = 0
+
+[[instructions.imports]]
+repository = "https://github.com/nicholasjconn/skills.git"
+selectors = ["instructions/memory.md"]
+order = 10
+
+[[instructions.local]]
+selectors = ["conventions.md"]
+order = 40
+```
+
+Local files remain under `.agent-layer/instructions/`; imports and their genuine upstream bases live under `.agent-layer/instructions-imported/` and `.agent-layer/instructions.lock.json`. Editing order changes projection without changing import identity. Missing, unconfigured, duplicate or linked sources fail before projection. Git publication changes only the selected file. Commit imported files and their lock with the project if you track `.agent-layer/`.
+
 ### Wizard
 
 `al wizard` guides you through approvals, enabled agents, model selection, instruction files, skills, MCP servers, and warning thresholds.
@@ -743,12 +765,12 @@ Use it when you want to get to a safe, working configuration quickly, or when yo
 - `.agent-layer/config.toml`
 - `.agent-layer/.env`
 - `.agent-layer/gitignore.block` (folder tracking)
-- Missing managed instruction files (`00_rules.md`; also `01_memory.md` for Rules and memory)
+- Git imports for `instructions/rules.md` (Rules) and also `instructions/memory.md` (Rules and memory), with fresh orders 0 and 10
 - Missing `docs/agent-layer/` memory docs and `.agent-layer/templates/docs/` copies, when Rules and memory is selected
 - Catalog skill directories under `.agent-layer/skills/` (selected rows are added or repaired; deselected catalog-managed rows are removed)
 - Missing statusline source files when a status line is enabled
 
-Instruction and memory seeding creates missing files only and does not refresh existing ones. Catalog skill removal deletes the matching skill directory after preview confirmation. Use `al upgrade` for managed instruction and workflow-skill template updates.
+Instruction selection adds missing imports only. Trusted adoption of `00_rules.md` and `01_memory.md` preserves local bytes, permissions and ordering, using the fetched upstream file as the base for later pulls. Memory docs are seeded only when missing. Use `al instructions pull` for instruction updates and `al upgrade` for bundled operator-skill templates. None preserves existing instructions.
 
 The wizard rewrites `config.toml` in a fixed preferred section order and creates backups in `.agent-layer/state/wizard-backups/` before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files. After a successful upgrade and sync, `al upgrade` moves older backups from `.agent-layer/` into this directory, retaining conflicts with numbered `.legacy-N` suffixes.
 
@@ -782,7 +804,7 @@ Think of sync as a build step. You can run it any time you want to refresh gener
 **What it does**
 
 - Validates `.agent-layer/config.toml`
-- Reads `.agent-layer/instructions/`, both `.agent-layer/skills/` and `.agent-layer/skills-imported/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
+- Reads configured `.agent-layer/instructions/` and `.agent-layer/instructions-imported/` in numeric order, both `.agent-layer/skills/` and `.agent-layer/skills-imported/`, `.agent-layer/commands.allow`, and `.agent-layer/.env`
 - Regenerates client outputs and launchers
 
 **Steps (high level)**
@@ -932,9 +954,14 @@ DeltaSelect exports a content-addressed `selection.json`. Use the CLI scaffolder
 
 ```bash
 al benchmark init selection.json --directory benchmark-study
+# Optional: freeze the external skill source at a particular Git revision
+al benchmark init selection.json --directory benchmark-study-pinned --skills-ref <ref>
 al benchmark run benchmark-study/study.toml --dry-run
 al benchmark run benchmark-study/study.toml
 ```
+
+Initialization fetches and validates all seven exact development skill trees from `nicholasjconn/skills` before publishing the study directory. It freezes plain files under `treatment/official-skills` and source commit/ref/tree evidence in `treatment/skills-source.json`. Existing studies and later runs use their frozen inputs without refetching. Fetch/ref/validation failure leaves the requested destination untouched.
+
 
 The study manifest is the reproducibility boundary. Its `selection` points to the exported DeltaSelect JSON, and each `[[experiments]]` entry declares a name, model, reasoning level, and any treatment inputs such as config, instructions, or skills. Every referenced path must be relative to and remain inside the directory containing `study.toml`.
 
@@ -1005,7 +1032,7 @@ though ordinary pull does not follow that tip until the configured ref changes.
 The destination side requires a writable import whose configured branch exists;
 an absent skill path on that branch is an empty tree.
 
-**pull** is the only command that advances tracked imports. It merges the locked
+**pull** advances tracked imports to current source targets. It merges the locked
 upstream tree, your current local tree, and the new upstream tree, so local
 edits survive an update. A change on one side applies cleanly; incompatible
 changes to the same path, delete/modify cases, non-text files changed on both

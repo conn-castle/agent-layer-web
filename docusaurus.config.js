@@ -96,6 +96,7 @@ const config = {
 
   url: "https://agent-layer.dev",
   baseUrl: BASE_URL,
+  trailingSlash: true,
 
   organizationName: "conn-castle",
   projectName: "agent-layer-web",

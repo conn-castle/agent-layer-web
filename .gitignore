@@ -20,7 +20,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # >>> agent-layer
-# Template hash: 3cac75bd140005b21bdf6950a10d9aa25e70640cf43b1396cc20921bb703e88d
+# Template hash: 20ef5ec6b914d599ca524cbdad224783eac8705e0fe3e37d853fc4901582c877
 # Managed by Agent Layer. To customize, edit .agent-layer/gitignore.block
 # and re-run `al sync` to apply changes.
 
@@ -32,20 +32,32 @@ yarn-error.log*
 
 # Agent Layer-generated instruction shims
 /AGENTS.md
-/CLAUDE.md
-/GEMINI.md
 /.github/copilot-instructions.md
 
 # Agent Layer-generated client configs + artifacts
 # These may contain resolved secrets from .agent-layer/.env — keep gitignored.
 /.agent/
+/.agents/
 /.mcp.json
+/.mcp.json.tmp-*
 /.codex/
+/.copilot/
 /.gemini/
+/.grok/
+/.grok-config/
+/.muse/hooks.json
+/.muse/agent-layer-policy.json
+/.muse-config/
+/.muse-data/
+
+# Antigravity workspace marker (auto-created by agy; symlinks store per-user paths)
+/.antigravitycli/
+
+# Antigravity repo-local data dir (al sync regenerates managed files)
+/.agy/
 /.claude/
 /.claude-config/
 /.vscode/mcp.json
-/.vscode/prompts/
 # Optional: keep uncommented to ignore VS Code settings.
 /.vscode/settings.json
 # <<< agent-layer

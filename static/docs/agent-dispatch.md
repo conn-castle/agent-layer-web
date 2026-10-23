@@ -93,6 +93,30 @@ start -> wait -> completed | failed | cancelled
 
 `al sync` projects a built-in MCP server named `agent-layer` into every enabled Codex, Claude, Antigravity, VS Code, Copilot CLI, Grok, and Muse client. The server is derived from Agent Layer configuration, not declared as a `[[mcp.servers]]` entry. Its ID is reserved and cannot be used by a custom server. Muse shares the project `.mcp.json` with Claude while preserving client filters; see the [reference](./reference.md#agents).
 
+The launcher follows normal CLI pin/`AL_VERSION` selection, so updating the global
+`al` preserves older project pins. Source Make workflows explicitly project the
+stable source executable for their configuration root, even when the client
+parent has no development environment. Inherited source environment from another
+repository does not persist MCP source selection; ordinary release sync restores
+release selection.
+
+Running servers keep their code until reconnected. After a pin change or binary
+replacement (including a source rebuild), options, start and continue refuse new
+provider work when selected code differs or freshness cannot be verified. Wait,
+inspect, output and cancel remain available. Admitted work keeps its original
+image. Even a same-byte atomic rebuild requires reconnecting. Changing the
+launch environment or switching source/release mode also needs a reconnect;
+running servers cannot detect those projection changes.
+
+Run `al update`, then `al upgrade` in each repository, and reconnect `agent-layer`
+once. In Claude Code use `/mcp`; in a persistent Codex app restart the app or
+reload MCP configuration. A new chat may reuse the running server. Pre-guard
+servers need one reconnect after upgrade to acquire the guard. For development,
+use `make al-sync` or `make al-upgrade` to project source despite an older pin,
+then reconnect after rebuilding; no manual pin edits are needed. Sync updates
+launch configuration without replacing servers. Timeout changes also require a
+reconnect and a reload of projected client timeouts.
+
 The server exposes seven Agent Dispatch tools:
 
 | Tool | Purpose |
@@ -247,9 +271,11 @@ An MCP start or continue call acknowledges work that runs independently. If the 
 
 `dispatch_inspect` and `dispatch_output` are the supported evidence surfaces for a known invocation ID. Prefer the CLI when a human needs to retain the handle and invocation ID directly.
 
-Inspection returns state, activity timestamps, and termination confirmation without waiting for execution. Process identities and proof details remain private. Output accepts `final_answer` or `events`; events retain available partial answers, including failed or cancelled runs.
+Inspection returns state, activity timestamps, and termination confirmation without waiting for execution. Process identities and proof details remain private. Output accepts `final_answer` or `events`; events retain available partial answers, including failed or cancelled runs. Use `offset` with the returned `next_offset` to paginate, or `tail: true` to read late evidence. The CLI equivalents are `--offset` and `--tail`; they cannot be combined. Each page contains at most 64 KiB of UTF-8 text and reports byte positions (`offset`, `next_offset`, `size_bytes`), invocation state, and termination confirmation. Continue while `next_offset < size_bytes`, keeping the returned `invocation_id` and artifact; a handle can select a later invocation after continuation. Join page content before parsing JSONL records, which can span pages. Fetching another page does not require continuing the provider. Reaching the current end of live events does not establish completion; use wait or inspect for state. Captured failed-run text remains partial evidence; `final_answer` requires a completed invocation.
 
-Output is UTF-8 text capped at 65,536 bytes and sets `truncated` when more captured text exists. Missing, unreadable, invalid, or unavailable output fails explicitly.
+Muse can complete a text-bearing turn and then announce a background continuation in the same invocation. Dispatch retracts that turn's provisional completion when an authenticated announcement arrives and waits for the background result. Before resume launches, a read-only Muse session snapshot and retained ownership evidence supply the turn/cursor baseline. If a resumed stream omits its new root link, its earlier task linkage must agree with an independent terminal snapshot at an advanced cursor. Foreign roots and sessions still fail validation. Sanitized lifecycle events record shutdown/protocol observations and executing Agent Layer build identity; retrieve them with events pagination or tail.
+
+`truncated` indicates a remaining suffix, or an omitted prefix on a tail read. Missing, unreadable, invalid, or unavailable output fails explicitly.
 
 ## Configuration
 

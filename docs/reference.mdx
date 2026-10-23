@@ -236,8 +236,8 @@ that a custom model or alias is invalid.
 Dispatch options obtain fresh lists on each explicit request, with provider
 version checks also concurrent. Launch, sync, and dispatch start/continue do not
 query models. Model defaults are delegated to the harness, never hard-coded by
-Agent Layer. Antigravity suggestions use native model IDs; display names are
-not duplicated as separate choices. Discovery may create the normal repo-local `.agy` and `.grok-config` directories
+Agent Layer. The Antigravity wizard and model checker use display names accepted
+by project configuration; dispatch override suggestions retain native CLI IDs. Discovery may create the normal repo-local `.agy` and `.grok-config` directories
 when absent; it does not sync configuration or create dispatch runs.
 
 **Reasoning effort**
@@ -949,6 +949,8 @@ handles rather than a fanout resource. See [Agent Dispatch](./agent-dispatch.mdx
 for the complete lifecycle, MCP interface, timeout behavior, and configuration.
 
 ### Benchmark runner
+
+Benchmark execution requires the optional `al-benchmark` companion on `PATH`; `al benchmark` forwards its arguments to it. With Go 1.27+, install the matching published release, for example `go install github.com/conn-castle/agent-layer/cmd/al-benchmark@v1.1.0` after that version is published, and add Go's bin directory to `PATH`. The core CLI updater does not update the companion; handoff rejects a companion whose version differs from the active core CLI, including a repository-selected release. Existing studies, receipts, reports, and recovery evidence need no migration. Installing the companion pulls no Docker images; actual selected-task readiness and execution still depend on the upstream ECR registry. Core releases do not require ECR access.
 
 DeltaSelect exports a content-addressed `selection.json`. Use the CLI scaffolder to create a self-contained study with a benchmark-safe provider config and snapshots of the current instructions and projected skills. Then validate the complete study before authorizing provider calls:
 

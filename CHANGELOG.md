@@ -3,6 +3,26 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## v1.1.0 - 2026-10-22
+
+### Added
+- Benchmark execution is available as the optional `al-benchmark` companion. Existing `al benchmark` commands forward to it; benchmark users install the matching release separately with Go. Existing studies, receipts, reports, and recovery evidence are preserved.
+- Dispatch output supports byte-cursor pagination and bounded tail reads in both the CLI and MCP tools, so callers can retrieve complete answers and late evidence beyond the first output page. Responses include invocation state, artifact size, and termination status; failed-run events remain partial evidence.
+
+### Fixed
+- Muse dispatch accepts validated text-bearing background continuations and recovers retained invocation lineage after interrupted runs, while preserving foreign-session and foreign-root rejection. Lifecycle diagnostics record the running Agent Layer build and sanitized shutdown state.
+- Persistent MCP servers refuse new discovery, start, and continuation work when their executable or selected project version is stale. Existing wait, inspect, output, and cancellation controls remain available; reconnect MCP after updating or upgrading.
+- Legacy skill cleanup preserves Codex's native `.codex/skills/.system` cache. Antigravity model selection uses configuration display names where they differ from native CLI override IDs. Codex header warnings now match the placeholder formats sync accepts.
+- CLI update checks inspect the installed executable even when inherited development-root scoping or repository pins would otherwise select a different version.
+- Website Markdown exports preserve headings, code blocks, and source-relative sibling links. Benchmark treatment builds reject source changes during compilation instead of recording stale provenance.
+
+### Security
+- Release builds use Go 1.27.3 to address GO-2026-6809 in certificate validation.
+
+### Development
+- Core release readiness requires exact-source CI and a signed version-matched rehearsal without live ECR catalog certification. Mandatory offline fixtures, separate pinned Pier contract CI, and a transitive dependency check protect the optional benchmark integration; actual evaluations still preflight selected tasks against upstream infrastructure.
+- Native shared Go caches, isolated Git fixtures, repository-owned dogfood sources, and GitHub issue tracking improve development and release checks. Historical migration support remains available in this release.
+
 ## v1.0.0 - 2026-10-12
 
 ### Changed

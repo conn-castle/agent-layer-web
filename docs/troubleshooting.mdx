@@ -147,6 +147,13 @@ VS Code and some extensions (for example Peacock) add a new setting after the la
 - For HTTP servers, confirm the URL and headers are correct.
 - Use `al doctor` to confirm discovery and tool listing.
 
+### `agent-layer` MCP server: `al: not found` or provider not on PATH
+
+GUI and background MCP clients (for example, the Codex app on macOS) may not inherit your terminal `PATH`, so `/opt/homebrew/bin` or similar directories can be missing.
+
+- If the `agent-layer` server exits with `exec: al: not found`, run `al sync` from a terminal where `command -v al` works, then reconnect the server. The generated launcher records that `al` and appends its directory to the server `PATH`. A project pinned to an older release keeps the older launcher until you update the installed CLI with `al update`, then run `al upgrade` in the project.
+- If dispatch reports `` `al dispatch` target codex requires `codex` on PATH ``, the message lists the `PATH` the server searched; `dispatch_options` shows only `` `codex` not found on PATH ``. Install the provider CLI in one of those directories or next to `al`, or start the client from an environment whose `PATH` includes it, then reconnect the `agent-layer` server. If dispatch reports that the first provider binary on `PATH` is under a relative or empty entry, which is refused, remove that entry or put the directory of the intended provider CLI before it; dispatch does not search later directories.
+
 ### Global MCP server fallback for VS Code (Codex)
 
 This is primarily a VS Code fallback for repos that opt into repo-local Codex home with `agents.codex.local_config_dir = true`.
@@ -154,6 +161,8 @@ This is primarily a VS Code fallback for repos that opt into repo-local Codex ho
 When `agents.codex.local_config_dir` is absent or false, Agent Layer does not set `CODEX_HOME` for `al codex`, Codex dispatch, or `al vscode`. Codex uses its normal global/project config layering, and any inherited `CODEX_HOME` remains user-owned.
 
 When `agents.codex.local_config_dir = true`, `al codex`, Codex dispatch, and `al vscode` set `CODEX_HOME=<repo>/.codex`. `.codex/config.toml` is shared Codex state patched by `al sync`; known Agent Layer-managed entries are refreshed from `.agent-layer/config.toml`, including MCP servers and a current repo trust seed when that exact project entry is absent.
+
+In that mode, `al vscode` always uses the repo home. `al codex`, Codex dispatch, and model discovery pass an inherited relative `CODEX_HOME` to Codex as an absolute path resolved from the directory where `al` runs. Because `al` runs from any project subfolder, `.codex` selects `<repo>/.codex` unless that directory has its own `.codex`. An inherited `CODEX_HOME` that points anywhere else is kept, and `al codex` and Codex dispatch warn about the mismatch.
 
 If you launch VS Code without Agent Layer's repo-local launcher while `agents.codex.local_config_dir = true`, the Codex VS Code extension will not receive the repo-local `CODEX_HOME`. In that case, the extension continues to use repo-local instructions and skills, but it uses MCP servers from your global Codex config instead.
 
@@ -190,13 +199,15 @@ This is primarily a VS Code fallback, and applies only when `local_config_dir = 
 
 When `local_config_dir` is enabled, `al claude` sets a repo-local `CLAUDE_CONFIG_DIR`, so Claude Code uses the repo-local `.claude-config/` for user-level configuration (settings, caches, and `/login` credentials). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `[agents.claude_vscode]` is enabled.
 
+In that mode, `al vscode` always uses the repo directory. `al claude`, Claude dispatch, and model discovery pass an inherited relative `CLAUDE_CONFIG_DIR` to Claude as an absolute path resolved from the directory where `al` runs. Because `al` runs from any project subfolder, `.claude-config` selects `<repo>/.claude-config` unless that directory has its own `.claude-config`. An inherited `CLAUDE_CONFIG_DIR` that points anywhere else is kept, and `al claude` and Claude dispatch warn about the mismatch.
+
 :::note Authentication storage
 On macOS, Claude Code keys its Keychain entry to `CLAUDE_CONFIG_DIR` and falls back to `.credentials.json` there if the Keychain write fails. Linux and Windows store `/login` credentials in `.credentials.json` under that directory. Other authentication modes may use external credential sources. See [Claude Code authentication](https://code.claude.com/docs/en/authentication).
 :::
 
 If you launch VS Code without Agent Layer's repo-local launcher, the Claude extension will not receive the repo-local `CLAUDE_CONFIG_DIR`. In that case, the extension uses your global `~/.claude/` configuration, so settings are shared across repositories.
 
-When `local_config_dir` is disabled (the default), Claude always uses the global `~/.claude/` configuration regardless of how VS Code is launched.
+When `local_config_dir` is disabled (the default), Claude uses the global `~/.claude/` configuration unless a preserved `CLAUDE_CONFIG_DIR` override selects another directory. Agent Layer clears an inherited `CLAUDE_CONFIG_DIR` only when it selects this repo's `.claude-config`, as resolved above, and keeps any other value.
 
 Tradeoffs (VS Code without launcher, with `local_config_dir` enabled):
 

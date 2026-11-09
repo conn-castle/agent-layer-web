@@ -100,11 +100,21 @@ parent has no development environment. Inherited source environment from another
 repository does not persist MCP source selection; ordinary release sync restores
 release selection.
 
+GUI and background clients, such as the Codex app, may start the server with a
+shorter `PATH` than your terminal. The release launcher records the `al` that
+`al sync` resolved, runs it directly, and appends its directory to the server
+`PATH`. After moving or reinstalling `al`, re-run `al sync` and reconnect the
+`agent-layer` server; a running server keeps recording the entry it started
+from. Provider CLIs must be on the client's `PATH` or in that `al` directory. Projects pinned to an older
+release keep generating the older launcher until you run `al update`, then
+`al upgrade` in the project.
+
 Running servers keep their code until reconnected. After a pin change or binary
 replacement (including a source rebuild), options, start and continue refuse new
 provider work when selected code differs or freshness cannot be verified. Wait,
 inspect, output and cancel remain available. Admitted work keeps its original
-image. Even a same-byte atomic rebuild requires reconnecting. Changing the
+image. Even a same-byte atomic replacement requires reconnecting; source
+wrappers keep an unchanged rebuild's existing executable. Changing the
 launch environment or switching source/release mode also needs a reconnect;
 running servers cannot detect those projection changes.
 
@@ -112,8 +122,8 @@ Run `al update`, then `al upgrade` in each repository, and reconnect `agent-laye
 once. In Claude Code use `/mcp`; in a persistent Codex app restart the app or
 reload MCP configuration. A new chat may reuse the running server. Pre-guard
 servers need one reconnect after upgrade to acquire the guard. For development,
-use `make al-sync` or `make al-upgrade` to project source despite an older pin,
-then reconnect after rebuilding; no manual pin edits are needed. Sync updates
+use `make al-sync` to project source despite an older pin, or `make al-upgrade` after completing the v1.0.0 transition,
+then reconnect when a rebuild replaces the executable; no manual pin edits are needed. Sync updates
 launch configuration without replacing servers. Timeout changes also require a
 reconnect and a reload of projected client timeouts.
 
@@ -161,7 +171,7 @@ al dispatch cancel <handle-or-invocation-id>
 
 `start` requires `--agent` and exactly one prompt source. When model or reasoning effort is omitted, Agent Layer uses the configured value; if there is no configured value, the provider uses its own default.
 
-`--prompt-file` avoids shell escaping and command-length limits for substantial prompts. `--skill` names a known user-managed or imported Agent Layer skill. Dispatch prepends the target's native skill invocation to the prompt—for example `$review` for Codex or `/review` for another target. The skill must already be projected for that target; run `al sync` if start reports it missing. `dispatch_continue` does not accept a skill.
+`--prompt-file` avoids shell escaping and command-length limits for substantial prompts. Prompt sources are limited to 10 MiB, a named pipe is read until its writer closes, and interrupting the command (or ending the MCP request) before the prompt is read cancels the start or continuation without contacting the provider. `--skill` names a known user-managed or imported Agent Layer skill. Dispatch prepends the target's native skill invocation to the prompt—for example `$review` for Codex or `/review` for another target. The skill must already be projected for that target; run `al sync` if start reports it missing. `dispatch_continue` does not accept a skill.
 
 `continue` retains the conversation's provider, model, reasoning effort, and provider context. It accepts a new prompt only after the current invocation reaches a terminal state.
 

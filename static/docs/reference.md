@@ -223,7 +223,9 @@ Each agent has an `enabled` flag and an optional `model` value. Omit `model` and
 Wizard, Doctor, and Dispatch options share live model discovery for Claude,
 Codex, Grok, Muse, Antigravity, and Copilot CLI. Discovery uses the project's normal provider
 configuration without sync or inference, runs concurrently across harnesses,
-and allows ten seconds per lookup. Wizard starts queries before its first configuration screen; disabled Muse waits until you enable it and open its model picker, waits only when
+and allows ten seconds per lookup. Discovery stops each harness and any child
+processes that remain in its process group before returning, including on interrupt;
+Claude instead receives end of input so it can finish saving refreshed credentials. Wizard starts queries before its first configuration screen; disabled Muse waits until you enable it and open its model picker, waits only when
 a model picker needs its result, and reuses results during navigation. Failed
 discovery displays an error and keeps the client default and custom model choices
 available; it supplies no model suggestions. Scripted answers do not trigger
@@ -238,7 +240,8 @@ version checks also concurrent. Launch, sync, and dispatch start/continue do not
 query models. Model defaults are delegated to the harness, never hard-coded by
 Agent Layer. The Antigravity wizard and model checker use display names accepted
 by project configuration; dispatch override suggestions retain native CLI IDs. Discovery may create the normal repo-local `.agy` and `.grok-config` directories
-when absent; it does not sync configuration or create dispatch runs.
+when absent, and an empty owner-only `.codex` home when `agents.codex.local_config_dir = true`
+selects it; it does not sync configuration or create dispatch runs.
 
 **Reasoning effort**
 
@@ -523,6 +526,8 @@ The `al` CLI syncs repo-local configuration and launches your chosen client. Thi
 
 The command set is intentionally small. Most of the time you only need one rhythm: `al init` once, `al <client>` every day, `al doctor` when something feels off.
 
+The first interrupt (Ctrl-C) stops `al sync`, `al wizard`, `al upgrade rollback`, and `al doctor` catalog inspection while they wait for the project lock, and stops the `al init` wizard prompt and skill or instruction confirmations without waiting for more input; an answer already typed ahead is not applied. Agent Layer refuses a FIFO or other special file, including a symlink to one, where it reads a project document, wizard profile or answers, native client config, upgrade snapshot, or dispatch metadata, instead of blocking on it. Symlinks to regular files still work for project documents, wizard inputs, upgrade snapshots, dispatch metadata, `.codex/config.toml`, `.grok-config/trusted_folders.toml`, and `.vscode/settings.json`. `al sync` refuses any symlink at the Antigravity and Muse settings files, the Muse approval policy, `.grok/config.toml`, and the Grok chime hook, even one to a regular file.
+
 ### Command map
 
 | Command | Purpose |
@@ -714,7 +719,7 @@ Use this when `.agent-layer/gitignore.block` is invalid (for example it accident
 
 ### Upgrade plan
 
-`al upgrade plan` is a read-only upgrade preview. It does not write files.
+`al upgrade plan` is a read-only upgrade preview. It does not write files. It enforces the 1.0.0 supported-source floor and refuses unfinished transitions with v1.0.0 recovery guidance before printing a plan.
 
 It compares your repository state against templates embedded in the currently running `al` binary (not an older repo-pinned binary).
 
@@ -770,9 +775,9 @@ Use it when you want to get to a safe, working configuration quickly, or when yo
 - Catalog skill directories under `.agent-layer/skills/` (selected rows are added or repaired; deselected catalog-managed rows are removed)
 - Missing statusline source files when a status line is enabled
 
-Instruction selection adds missing imports only. Trusted adoption of `00_rules.md` and `01_memory.md` preserves local bytes, permissions and ordering, using the fetched upstream file as the base for later pulls. Memory docs are seeded only when missing. Use `al instructions pull` for instruction updates and `al upgrade` for bundled operator-skill templates. None preserves existing instructions.
+Instruction selection adds missing imports only. The current wizard does not adopt `00_rules.md` or `01_memory.md`; install or run the Agent Layer v1.0.0 executable itself for `al upgrade`, then its `al wizard` for adoption, or rename the local files and their selectors. Accepted wizard/profile changes still establish explicit orders for supported local instructions. Memory docs are seeded only when missing. Use `al instructions pull` for instruction updates and `al upgrade` for bundled operator-skill templates. None preserves existing instructions.
 
-The wizard rewrites `config.toml` in a fixed preferred section order and creates backups in `.agent-layer/state/wizard-backups/` before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files. After a successful upgrade and sync, `al upgrade` moves older backups from `.agent-layer/` into this directory, retaining conflicts with numbered `.legacy-N` suffixes.
+The wizard rewrites `config.toml` in a fixed preferred section order and creates backups in `.agent-layer/state/wizard-backups/` before modifying `.agent-layer/config.toml` or `.agent-layer/.env`. An apply that leaves a file unchanged keeps that file's previous backup. An apply that fails before completing its config and `.env` writes restores the previous backups of files it left unchanged. Backup operations refuse a symlinked `.agent-layer/`, `state/`, or `wizard-backups/` directory, and a backup entry that is not a regular file. Inline comments on modified lines may be moved to leading comments or removed; the original formatting is preserved in the backup files. After a successful upgrade and sync, `al upgrade` moves older backups from `.agent-layer/` into this directory, retaining conflicts with numbered `.legacy-N` suffixes.
 
 Additional modes:
 
@@ -903,6 +908,10 @@ If you need to use Agent Layer flags as well, place `--` before the client argum
 - `code` is missing on `PATH`
 - `.vscode/settings.json` has a malformed managed block marker state
 
+Only complete marker comment lines directly in the root settings object count as the managed block; marker text in values, block comments, header comments, and nested profiles is ignored.
+
+`al vscode` opens the project (`.`) unless you pass a file, folder, workspace, or stdin (`-`) target. Separate values of `--user-data-dir`, `--extensions-dir`, `--profile`, and `--locale` are not targets, so `al vscode -- --profile "Web Development"` still opens the project.
+
 Examples:
 
 ```bash
@@ -950,7 +959,7 @@ for the complete lifecycle, MCP interface, timeout behavior, and configuration.
 
 ### Benchmark runner
 
-Benchmark execution requires the optional `al-benchmark` companion on `PATH`; `al benchmark` forwards its arguments to it. With Go 1.27+, install the matching published release, for example `go install github.com/conn-castle/agent-layer/cmd/al-benchmark@v1.1.0` after that version is published, and add Go's bin directory to `PATH`. The core CLI updater does not update the companion; handoff rejects a companion whose version differs from the active core CLI, including a repository-selected release. Existing studies, receipts, reports, and recovery evidence need no migration. Installing the companion pulls no Docker images; actual selected-task readiness and execution still depend on the upstream ECR registry. Core releases do not require ECR access.
+Benchmark execution requires the optional `al-benchmark` companion on `PATH`; `al benchmark` forwards its arguments to it. With Go 1.27+, install the matching published release, for example `go install github.com/conn-castle/agent-layer/cmd/al-benchmark@v1.2.0` after that version is published, and add Go's bin directory to `PATH`. The core CLI updater does not update the companion; handoff rejects a companion whose version differs from the active core CLI, including a repository-selected release. Existing studies, receipts, reports, and recovery evidence need no migration. Installing the companion pulls no Docker images; actual selected-task readiness and execution still depend on the upstream ECR registry. Core releases do not require ECR access.
 
 DeltaSelect exports a content-addressed `selection.json`. Use the CLI scaffolder to create a self-contained study with a benchmark-safe provider config and snapshots of the current instructions and projected skills. Then validate the complete study before authorizing provider calls:
 
@@ -1190,6 +1199,7 @@ Use it to check whether your config is valid, your secrets are present, and your
 **Timeouts and network**
 
 - `al doctor` waits up to 30 seconds per enabled MCP server before timing out.
+- Before returning, including on interrupt or timeout, `al doctor` stops each stdio MCP server it started and any child processes that remain in its process group. A server still running five seconds after end of input receives SIGTERM, and its process group is stopped five seconds after that.
 - It uses network access for MCP servers and update checks. Set `AL_NO_NETWORK=1` to disable update checks and pinned downloads.
 
 ### Completion

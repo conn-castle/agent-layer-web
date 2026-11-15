@@ -83,6 +83,8 @@ A root `CLAUDE.md` is different: current Agent Layer does not generate it, and `
 
 Grok uses the repo-local `.grok-config/` directory as `GROK_HOME` for `al grok`, dispatch, and `al vscode`. Authentication and sessions are therefore isolated per repository; if Grok reports that authentication is missing, authenticate from `al grok` in that repository or provide the client-supported credential environment variable.
 
+When Grok is disabled, `al vscode` clears only inherited `GROK_HOME` values selecting this repo’s home, including shorthand fallback from subfolders, and makes other relative overrides absolute.
+
 Muse uses native user storage; Agent Layer leaves `HOME` and XDG variables unchanged. If upgrading from repo-local Muse storage, sign in with `muse login` if native storage is not authenticated. Historical `.muse-config/` and `.muse-data/` are retained, but sessions are not migrated. Start a new dispatch if an old Muse session cannot be resumed. Project MCP is generated in private, gitignored `.mcp.json`, shared with Claude.
 
 If sync reports that an MCP server in the generated root `.mcp.json` excludes VS Code, `agents.vscode.enabled` is true and the server is selected for Claude (with `claude` or `claude_vscode` enabled) or Muse (with Muse enabled), so VS Code's root-file importer cannot enforce its `clients` filter. Add `vscode` to that server's `clients` (or omit the list to share with all clients), or disable every enabled Muse, Claude, or Claude VS Code integration selecting the server.
@@ -158,11 +160,15 @@ GUI and background MCP clients (for example, the Codex app on macOS) may not inh
 
 This is primarily a VS Code fallback for repos that opt into repo-local Codex home with `agents.codex.local_config_dir = true`.
 
-When `agents.codex.local_config_dir` is absent or false, Agent Layer does not set `CODEX_HOME` for `al codex`, Codex dispatch, or `al vscode`. Codex uses its normal global/project config layering, and any inherited `CODEX_HOME` remains user-owned.
+When `agents.codex.local_config_dir` is absent or false, Agent Layer clears inherited `CODEX_HOME` values selecting this repo’s `.codex` for `al codex`, Codex dispatch, model discovery, and `al vscode`. Other homes are preserved, with relative paths made absolute from the caller’s directory. Codex otherwise uses its normal global/project config layering.
 
 When `agents.codex.local_config_dir = true`, `al codex`, Codex dispatch, and `al vscode` set `CODEX_HOME=<repo>/.codex`. `.codex/config.toml` is shared Codex state patched by `al sync`; known Agent Layer-managed entries are refreshed from `.agent-layer/config.toml`, including MCP servers and a current repo trust seed when that exact project entry is absent.
 
-In that mode, `al vscode` always uses the repo home. `al codex`, Codex dispatch, and model discovery pass an inherited relative `CODEX_HOME` to Codex as an absolute path resolved from the directory where `al` runs. Because `al` runs from any project subfolder, `.codex` selects `<repo>/.codex` unless that directory has its own `.codex`. An inherited `CODEX_HOME` that points anywhere else is kept, and `al codex` and Codex dispatch warn about the mismatch.
+In that mode, `al vscode` uses the repo home when `agents.vscode` is enabled. If only that integration is disabled, it preserves inherited `CODEX_HOME` and makes relative values absolute. If that value selects the project home, Agent Layer creates the directory with owner-only permissions when missing; foreign homes are not created. `al codex`, Codex dispatch, and model discovery pass an inherited relative `CODEX_HOME` to Codex as an absolute path resolved from the directory where `al` runs. Symlinks are followed before `..`; home-name shorthand (including `.codex/`, `.//.codex`, and `.codex/.`) falls back to `<repo>/.codex` from subfolders only when the caller-relative entry is absent. An inherited `CODEX_HOME` that points anywhere else is kept, and `al codex` and Codex dispatch warn about the mismatch.
+
+Aliases of the repo root are recognized even when `.codex` is missing, so they neither warn nor prevent creation. Relative overrides selecting the project home use the default `<repo>/.codex` spelling, including when the root is a symlink. Case-only home aliases are recognized only when the filesystem establishes object identity; case-only spellings of a missing leaf are unsupported until it exists. On a case-sensitive filesystem `.Codex` is a separate home. New `.codex` directories use `0700`; existing `.codex` modes are preserved. Agent Layer does not create `.claude-config` during sync.
+
+HerdR records the effective absolute home for Codex, Claude, and Grok and restores it in the resume command, even from another working directory. Relaunch sessions captured by older versions to obtain this guarantee.
 
 If you launch VS Code without Agent Layer's repo-local launcher while `agents.codex.local_config_dir = true`, the Codex VS Code extension will not receive the repo-local `CODEX_HOME`. In that case, the extension continues to use repo-local instructions and skills, but it uses MCP servers from your global Codex config instead.
 
@@ -199,7 +205,7 @@ This is primarily a VS Code fallback, and applies only when `local_config_dir = 
 
 When `local_config_dir` is enabled, `al claude` sets a repo-local `CLAUDE_CONFIG_DIR`, so Claude Code uses the repo-local `.claude-config/` for user-level configuration (settings, caches, and `/login` credentials). For `al vscode`, `CLAUDE_CONFIG_DIR` is set only when both `local_config_dir` is `true` and `[agents.claude_vscode]` is enabled.
 
-In that mode, `al vscode` always uses the repo directory. `al claude`, Claude dispatch, and model discovery pass an inherited relative `CLAUDE_CONFIG_DIR` to Claude as an absolute path resolved from the directory where `al` runs. Because `al` runs from any project subfolder, `.claude-config` selects `<repo>/.claude-config` unless that directory has its own `.claude-config`. An inherited `CLAUDE_CONFIG_DIR` that points anywhere else is kept, and `al claude` and Claude dispatch warn about the mismatch.
+In that mode, `al vscode` always uses the repo directory. `al claude`, Claude dispatch, and model discovery pass an inherited relative `CLAUDE_CONFIG_DIR` to Claude as an absolute path resolved from the directory where `al` runs. Symlinks are followed before `..`; home-name shorthand (including trailing separators and dot segments) falls back to `<repo>/.claude-config` from subfolders only when the caller-relative entry is absent. An inherited `CLAUDE_CONFIG_DIR` that points anywhere else is kept, and `al claude` and Claude dispatch warn about the mismatch.
 
 :::note Authentication storage
 On macOS, Claude Code keys its Keychain entry to `CLAUDE_CONFIG_DIR` and falls back to `.credentials.json` there if the Keychain write fails. Linux and Windows store `/login` credentials in `.credentials.json` under that directory. Other authentication modes may use external credential sources. See [Claude Code authentication](https://code.claude.com/docs/en/authentication).
@@ -207,7 +213,7 @@ On macOS, Claude Code keys its Keychain entry to `CLAUDE_CONFIG_DIR` and falls b
 
 If you launch VS Code without Agent Layer's repo-local launcher, the Claude extension will not receive the repo-local `CLAUDE_CONFIG_DIR`. In that case, the extension uses your global `~/.claude/` configuration, so settings are shared across repositories.
 
-When `local_config_dir` is disabled (the default), Claude uses the global `~/.claude/` configuration unless a preserved `CLAUDE_CONFIG_DIR` override selects another directory. Agent Layer clears an inherited `CLAUDE_CONFIG_DIR` only when it selects this repo's `.claude-config`, as resolved above, and keeps any other value.
+When `local_config_dir` is disabled (the default), Claude uses the global `~/.claude/` configuration unless a preserved `CLAUDE_CONFIG_DIR` override selects another directory. Agent Layer clears an inherited `CLAUDE_CONFIG_DIR` only when it selects this repo's `.claude-config`, as resolved above, and keeps other homes, making relative values absolute from the caller’s directory, including in `al vscode`.
 
 Tradeoffs (VS Code without launcher, with `local_config_dir` enabled):
 
@@ -276,4 +282,6 @@ Muse 1.3.0 can return an empty catalog from its native MSP `model/list` endpoint
 
 Muse reads `AGENTS.md`; the generated `.claude/CLAUDE.md` symlink shares that file with Claude without a duplicate-instruction warning. If `.claude` itself is a user-managed symlink, sync retains a regular instruction copy and Muse may warn that it is ignored. Keep that copy for Claude. If Muse reports shadowed skills from `.claude/skills/`, run `al sync` with a version that generates shared skill links. Sync replaces duplicate Claude skill copies with links to `.agents/skills/`, keeping each skill available to both clients without shadow diagnostics.
 
-Grok may print “not authenticated” alongside fallback models. Agent Layer treats that diagnostic as a discovery error even when models are returned. Sign in using `al grok`, then retry model discovery. An empty catalog also reports a discovery failure.
+Grok may print “not authenticated” alongside fallback models. Discovery waits for `grok models` to exit and retries once, picking up any refresh Grok completes during the first lookup. If both lookups remain unauthenticated, each diagnostic says “harness is not authenticated” and describes only the login file's metadata: no file was present before discovery (sign in using `al grok`); a file present before discovery was removed during lookup (sign in again); or a file was present before discovery and remains present (run `al grok` to let Grok refresh it or sign in again). These observations do not establish why authentication failed.
+
+Discovery uses `GROK_AUTH_PATH` when set, otherwise `auth.json` in the selected Grok home. When an API key (`XAI_API_KEY` or `GROK_CODE_XAI_API_KEY`) or inline session (`GROK_AUTH`) is configured, the login file may not be the auth source Grok used, so discovery keeps “harness is not authenticated; sign in using al grok”. Uncertain metadata and non-regular or dangling entries also keep that generic message. Fallback models do not make an unauthenticated lookup successful. An empty catalog also reports a discovery failure.
